@@ -3,7 +3,7 @@ package fileSystem.util;
 /*
 Set of constants used by the ConsoleParser
  */
-public class ConsoleConstants {
+public class ConsoleConstant {
     //used by the console parser to keep track of type
     public static final int TYPE_CLIENT = 1;
     public static final int TYPE_CONTROLLER = 2;
