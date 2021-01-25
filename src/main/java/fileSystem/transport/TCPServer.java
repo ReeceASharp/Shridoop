@@ -8,9 +8,9 @@ import java.net.Socket;
 import java.net.SocketException;
 
 public class TCPServer implements Runnable {
-    private ServerSocket serverSocket;
     private final Node node;
     private final int port;
+    private ServerSocket serverSocket;
 
     // Constructor, calls the main constructor with a port # of 0 will pick a random port
     public TCPServer(Node node) {
@@ -21,7 +21,6 @@ public class TCPServer implements Runnable {
     public TCPServer(Node node, int port) {
         this.node = node;
         this.port = port;
-
         try {
             //create a socket on a pocket for incoming connections to connect to
             serverSocket = new ServerSocket(port);
@@ -36,6 +35,9 @@ public class TCPServer implements Runnable {
     public void run() {
         System.out.printf("[TCPSERVER] Port:%s, Socket:%s %n", port, serverSocket.getLocalSocketAddress().toString());
 
+        //set a reference after it has been fully constructed
+        node.setTCPServer(this);
+
         try {
             while (true) {
                 //block for incoming connections
@@ -44,8 +46,22 @@ public class TCPServer implements Runnable {
                 new Thread(new TCPReceiver(node, clientSocket)).start();
 
             }
+        } catch (SocketException e) {
+            System.out.println("Exiting.");
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+
+    }
+
+    public void cleanup() {
+        try {
+            if (!serverSocket.isClosed())
+                serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }

@@ -2,10 +2,9 @@ package fileSystem.util;
 
 import fileSystem.node.Node;
 
-import static fileSystem.util.ConsoleConstant.*;
-
-import java.util.Arrays;
 import java.util.Scanner;
+
+import static fileSystem.util.ConsoleConstant.*;
 
 /*
 Constructed by the relevant node, and allows commands to be entered there
@@ -14,7 +13,6 @@ Valid nodes: Client, Controller, ChunkServer
 public class ConsoleParser implements Runnable {
 
     private final Node node;
-
     private final Scanner userInput;
 
     public ConsoleParser(Node node) {
@@ -45,7 +43,8 @@ public class ConsoleParser implements Runnable {
         String response = "";
         boolean quit = false;
 
-        //Standard console commands, doesn't take into account
+        //Standard console commands, doesn't take into account custom, that is tried later and implemented in each node
+        boolean tryCustom = false;
         switch (input.toLowerCase()) {
             case "commands":
                 response = node.getConsoleText(CONSOLE_COMMANDS);
@@ -58,12 +57,15 @@ public class ConsoleParser implements Runnable {
                 quit = true;
                 break;
             default:
-                response = "ERROR: Invalid input. Enter 'help' for available commands.";
+                tryCustom = true;
         }
 
         //Node specific console commands
-        if (Arrays.asList(node.getCommands()).contains(input))
-            node.handleCommand(input);
+        //if (Arrays.asList(node.getCommands()).contains(input))
+        if (tryCustom) {
+            if (!node.handleCommand(input))
+                response = "ERROR: Invalid input. Enter 'help' for available commands.";
+        }
 
         if (!quit)
             System.out.println(response);

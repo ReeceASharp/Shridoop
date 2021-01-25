@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-# Note: this is only for Windows, assuming git is installed and on the System path
+# Note: this is only for Windows, assuming git is installed
 # This script simply opens up a few terminals and simulates a distributed environment
+# This is also being ran through a Unix-style terminal
 # I don't have access to a cluster, so this will simulate it locally
 
 # Controller
