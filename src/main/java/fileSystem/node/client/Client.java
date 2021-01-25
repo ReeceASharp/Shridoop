@@ -35,15 +35,15 @@ public class Client extends Node {
     public boolean handleCommand(String input) {
         boolean isValid = true;
 
-        switch (input) {
+        switch (input.split(" ")[0]) {
             case "connect":
-                connect();
+                connect(input);
                 break;
             case "add":
-                sendRequest("add");
+                sendRequest(input, "add");
                 break;
             case "remove":
-                sendRequest("remove");
+                sendRequest(input, "remove");
                 break;
             default:
                 isValid = false;
@@ -52,11 +52,14 @@ public class Client extends Node {
         return isValid;
     }
 
-    private void connect() {
-
+    /**
+     * Attempt to connect to the controller node
+     */
+    private void connect(String input) {
+        
     }
 
-    private void sendRequest(String requestType) {
+    private void sendRequest(String input, String requestType) {
         switch(requestType) {
             case "add":
                 break;
@@ -77,7 +80,7 @@ public class Client extends Node {
 
     @Override
     protected String getHelp() {
-        return "Client: This is the interface that is used to connect to a currently running Controller. ";
+        return "Client: This is the interface that is used to connect to a currently running Controller.";
     }
 
     @Override
