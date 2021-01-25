@@ -7,6 +7,11 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 
+//TODO: Potentially refactor to have a variant for the Controller to utilize a threadpool instead
+
+/**
+ * Organizes the creation and listening of incoming connections
+ */
 public class TCPServer implements Runnable {
     private final Node node;
     private final int port;
