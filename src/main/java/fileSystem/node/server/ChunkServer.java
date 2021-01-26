@@ -2,20 +2,26 @@ package fileSystem.node.server;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
+import fileSystem.protocols.events.ChunkServerSendsRegistration;
+import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import static fileSystem.protocols.Protocol.*;
+
 public class ChunkServer extends Node {
 
+    //needed to display, not the most DRY
+    final String[] commandList = {"list-files", "config"};
     private final int controllerPort;
     private final String name;
 
-    //needed to display, not the most DRY
-    final String[] commandList = {"list-files", ""};
+    private Socket controllerSocket;
 
     public ChunkServer(int portConnect, String name) {
         this.controllerPort = portConnect;
@@ -45,14 +51,76 @@ public class ChunkServer extends Node {
         //create the console, this may not be needed for the chunkServer, but could be useful for debugging
         Thread console = new Thread(new ConsoleParser(server));
         console.start();
+
+        try {
+            sendRegistration(server, host, portConnect);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
+    /**
+     * Chunk Server wants to register with the Controller, throw a message at it to check
+     *
+     * @param node the ChunkServer sending the registration request
+     * @param host The hostname/IP of the ChunkServer
+     * @param port The port of the ChunkServer
+     * @return return whether or not the registration was sent
+     * @throws IOException
+     */
+    private static boolean sendRegistration(ChunkServer node, String host, int port) throws IOException {
+        //open a socket/connection with the Controller, and
+        Socket controllerSocket = new Socket(host, port);
+        node.setControllerSocket(controllerSocket);
+
+        //construct the message, and get the bytes
+        byte[] marshalledBytes = new ChunkServerSendsRegistration(node.getServerIP(),
+                node.getServerPort(), node.getHostname()).getBytes();
+
+        //create a listener on this socket for the response from the Registry
+        Thread receiver = new Thread(new TCPReceiver(node, controllerSocket));
+        receiver.start();
+
+        //Send the message to the Registry to attempt registration
+        node.sendMessage(controllerSocket, marshalledBytes);
+
+        return true;
+    }
+
+    /**
+     * Print out the details of the ChunkServer in a formatted way
+     */
     private void showConfig() {
         System.out.printf("ServerName: '%s', ControllerPort: '%s'%n", name, controllerPort);
     }
 
+    private void setControllerSocket(Socket controllerSocket) {
+        this.controllerSocket = controllerSocket;
+    }
+
     @Override
     public void onEvent(Event e, Socket socket) {
+        switch (e.getType()) {
+            // Controller -> ChunkServer
+            case CONTROLLER_REPORTS_REGISTRATION_STATUS:
+                break;
+            case CONTROLLER_REQUESTS_MAJOR_HEARTBEAT:
+                break;
+            case CONTROLLER_REQUESTS_MINOR_HEARTBEAT:
+                break;
+            case CONTROLLER_REQUESTS_FILE_METADATA:
+                break;
+
+            // ChunkServer -> ChunkServer
+            case CHUNK_SERVER_REQUESTS_REPLICATION:
+                break;
+            case CHUNK_SERVER_REPORTS_REPLICATION:
+                break;
+
+            // Client -> ChunkServer
+            case CLIENT_REQUESTS_FILE_CHUNK:
+                break;
+        }
 
     }
 

@@ -56,8 +56,6 @@ public class TCPServer implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
 
     public void cleanup() {
@@ -69,4 +67,13 @@ public class TCPServer implements Runnable {
         }
 
     }
+
+    public int getServerPort() {
+        return port;
+    }
+
+    public String getServerIP() {
+        return serverSocket.getInetAddress().getHostName();
+    }
+
 }

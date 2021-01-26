@@ -2,31 +2,33 @@ package fileSystem.node.controller;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
+import fileSystem.protocols.events.ChunkServerSendsRegistration;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+
+import static fileSystem.protocols.Protocol.*;
 
 public class Controller extends Node {
-    boolean isActive;
-    final int port;
-    TCPServer server;
+    private final int port;
+    private static final String[] commandList = {"list-nodes", "list-files", "init", "display-config"};
+    private boolean isActive;
 
-    //TODO: build a ChunkServer information datastructure
-
-    final String[] commandList = {"list-nodes", "list-files", "init", "display-config"};
+    private final ArrayList<ChunkData> chunkServerList;
 
     public Controller(int port) {
         isActive = false;
         this.port = port;
+        chunkServerList = new ArrayList<>();
     }
 
     public static void main(String[] args) throws UnknownHostException {
 
         int port = 5000;
-
         //get the hostname and IP address
         InetAddress ip = InetAddress.getLocalHost();
         String host = ip.getHostName();
@@ -55,6 +57,7 @@ public class Controller extends Node {
                 //TODO
                 break;
             case "init":
+            case "initialize":
                 initialize();
                 break;
             case "display-config":
@@ -68,7 +71,37 @@ public class Controller extends Node {
 
     @Override
     public void onEvent(Event e, Socket socket) {
+        switch(e.getType()) {
+            // ChunkServer -> Controller
+            case CHUNK_SERVER_SENDS_REGISTRATION:
+                chunkServerRegistration(e, socket);
+                break;
+            case CHUNK_SERVER_REPORTS_MAJOR_HEARTBEAT:
+                break;
+            case CHUNK_SERVER_REPORTS_MINOR_HEARTBEAT:
+                break;
+            case CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA:
+                break;
 
+            // Client -> Controller
+            case CLIENT_REQUESTS_FILE_SAVE:
+                break;
+            case CLIENT_REQUESTS_FILE:
+                break;
+            case CLIENT_REQUESTS_FILE_DELETE:
+                break;
+            case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
+                break;
+            case CLIENT_REQUESTS_FILE_METADATA:
+                break;
+        }
+    }
+
+    private void chunkServerRegistration(Event e, Socket socket) {
+        ChunkServerSendsRegistration request = (ChunkServerSendsRegistration) e;
+        chunkServerList.add(new ChunkData(request.getName(), request.getIP(), request.getPort()));
+
+        //TODO: respond
     }
 
     @Override
@@ -110,7 +143,7 @@ public class Controller extends Node {
 
     /**
      * Send out a command to each server and start a chunkServer there. Currently, this is
-     * all written to work locally, but simulates a cluster through sockets and different filepaths
+     * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
      */
     private void initialize() {
         if (isActive) {

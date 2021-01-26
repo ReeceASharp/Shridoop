@@ -10,49 +10,101 @@ Different Paths
 
 # Controller -> ChunkServer
     - Confirm startup
+        ControllerReportsRegistrationStatus
     - Send out major Heartbeat
+        ControllerRequestsMajorHeartbeat
     - Send out minor Heartbeat
+        ControllerRequestsMinorHeartbeat
     - Request current files (metadata)
+        ControllerRequestsFileMetadata
 
 # ChunkServer -> Controller
     - Request to startup
+        ChunkServerSendRegistration
     - Respond to major heartbeat
+        ChunkServerReportsMajorHeartbeat
     - Respond to minor heartbeat
+        ChunkServerReportsMinorHeartbeat
     - Respond with current files (metadata)
+        ChunkServerReportsFileChunkMetadata
 
 # ChunkServer -> ChunkServer
     - Request to store information (Replication factor)
+        ChunkServerRequestsReplication
     - ^ Confirm success of received file
-
-# Client -> Controller
-    - Request to save file in system
-    - Request to get file
-    - Request to delete file
-    * ^NOTE: These might be able to be combined, we'll see what it looks like later
-    - Request current node-list
-    - Request current file-list
-
+        ChunkServerReportsReplication
 
 # Controller -> Client
     - Respond with Servers to send chunked file to
+        ControllerReportsFileChunkAddDestination
     - Respond with Server to ping for file transfer
+        ControllerReportsFileChunkRequestLocation
     - Respond that file was deleted
+        ControllerReportsFileDeleteStatus
     - Respond with current node-list
+        ControllerReportsChunkServerMetadata
     - Respond with current file-list
+        ControllerReportsFileMetadata
+
+# Client -> Controller
+    - Request to save file in system
+        ClientRequestsFileSave
+    - Request to get file
+        ClientRequestsFile
+    - Request to delete file
+        ClientRequestsFileDelete
+    * ^NOTE: These might be able to be combined, we'll see what it looks like later
+    - Request current node-list
+        ClientRequestsChunkServerMetadata
+    - Request current file-list
+        ClientRequestsFileMetadata
 
 # Client -> ChunkServer
     - Ask for part of file
+        ClientRequestsFileChunk
 
 # ChunkServer -> Client
     - Respond with file chunk
+        ChunkServerSendsFileChunk
 
  */
 
 
 //TODO: Implement above API requests
 public class Protocol {
-    public static final int CHUNK_SERVER_SENDS_REGISTRATION = 10;
-    public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 20;
-    public static final int CLIENT_SENDS_FILE_SAVE_REQUEST = 30;
-    public static final int CONTROLLER_SENDS_CHUNK_SERVER_LIST = 40;
+    // Controller -> ChunkServer
+    public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 10;
+    public static final int CONTROLLER_REQUESTS_MAJOR_HEARTBEAT = 11;
+    public static final int CONTROLLER_REQUESTS_MINOR_HEARTBEAT = 12;
+    public static final int CONTROLLER_REQUESTS_FILE_METADATA = 13;
+
+    // ChunkServer -> Controller
+    public static final int CHUNK_SERVER_SENDS_REGISTRATION = 20;
+    public static final int CHUNK_SERVER_REPORTS_MAJOR_HEARTBEAT = 21;
+    public static final int CHUNK_SERVER_REPORTS_MINOR_HEARTBEAT = 22;
+    public static final int CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA = 23;
+
+    // ChunkServer -> ChunkServer
+    public static final int CHUNK_SERVER_REQUESTS_REPLICATION = 30;
+    public static final int CHUNK_SERVER_REPORTS_REPLICATION = 31;
+
+    // Controller -> Client
+    public static final int CONTROLLER_REPORTS_FILE_CHUNK_ADD_DESTINATION = 40;
+    public static final int CONTROLLER_REPORTS_FILE_CHUNK_REQUEST_LOCATION = 41;
+    public static final int CONTROLLER_REPORTS_FILE_DELETE_STATUS = 42;
+    public static final int CONTROLLER_REPORTS_CHUNK_SERVER_METADATA = 43;
+    public static final int CONTROLLER_REPORTS_FILE_METADATA = 44;
+
+    // Client -> Controller
+    public static final int CLIENT_REQUESTS_FILE_SAVE = 50;
+    public static final int CLIENT_REQUESTS_FILE = 51;
+    public static final int CLIENT_REQUESTS_FILE_DELETE = 52;
+    public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 53;
+    public static final int CLIENT_REQUESTS_FILE_METADATA = 54;
+
+    // Client -> ChunkServer
+    public static final int CLIENT_REQUESTS_FILE_CHUNK = 60;
+
+    // ChunkServer -> Client
+    public static final int CHUNK_SERVER_SENDS_FILE_CHUNK = 70;
 }

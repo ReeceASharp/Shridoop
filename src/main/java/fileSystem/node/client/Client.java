@@ -7,6 +7,8 @@ import fileSystem.util.ConsoleParser;
 
 import java.net.Socket;
 
+import static fileSystem.protocols.Protocol.*;
+
 public class Client extends Node {
 
     final String[] commandList = {"connect", "add", "remove"};
@@ -70,6 +72,23 @@ public class Client extends Node {
 
     @Override
     public void onEvent(Event e, Socket socket) {
+        switch(e.getType()) {
+            // Controller -> Client
+            case CONTROLLER_REPORTS_FILE_CHUNK_ADD_DESTINATION:
+                break;
+            case CONTROLLER_REPORTS_FILE_CHUNK_REQUEST_LOCATION:
+                break;
+            case CONTROLLER_REPORTS_FILE_DELETE_STATUS:
+                break;
+            case CONTROLLER_REPORTS_CHUNK_SERVER_METADATA:
+                break;
+            case CONTROLLER_REPORTS_FILE_METADATA:
+                break;
+
+            // ChunkServer -> Client
+            case CHUNK_SERVER_SENDS_FILE_CHUNK:
+                break;
+        }
 
     }
 

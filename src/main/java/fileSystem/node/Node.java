@@ -1,9 +1,13 @@
 package fileSystem.node;
 
 import fileSystem.protocols.Event;
+import fileSystem.transport.TCPSender;
 import fileSystem.transport.TCPServer;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import static fileSystem.util.ConsoleConstant.*;
@@ -34,6 +38,31 @@ public abstract class Node {
         }
         // TODO: Throw error?
         return "ERROR";
+    }
+
+    /**
+     * send the bytes through a specific connection via thread
+     *
+     * @param socket          The pipe through which data is being sent through
+     * @param marshalledBytes The data being sent, the first 4 bytes are expected to be stored as the type
+     * @throws IOException
+     */
+    protected void sendMessage(Socket socket, byte[] marshalledBytes) throws IOException {
+        new Thread(new TCPSender(socket, marshalledBytes)).start();
+    }
+
+    /**
+     * Used to get node information
+     *
+     * @return The hostname of the computer the node is running on
+     */
+    protected String getHostname() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**
@@ -82,6 +111,14 @@ public abstract class Node {
      */
     public void setTCPServer(TCPServer ref) {
         this.server = ref;
+    }
+
+    protected int getServerPort() {
+        return server.getServerPort();
+    }
+
+    protected String getServerIP() {
+        return server.getServerIP();
     }
 
 }
