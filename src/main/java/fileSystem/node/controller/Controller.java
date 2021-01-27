@@ -5,7 +5,15 @@ import fileSystem.protocols.Event;
 import fileSystem.protocols.events.ChunkServerSendsRegistration;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -14,11 +22,12 @@ import java.util.ArrayList;
 import static fileSystem.protocols.Protocol.*;
 
 public class Controller extends Node {
-    private final int port;
-    private static final String[] commandList = {"list-nodes", "list-files", "init", "display-config"};
-    private boolean isActive;
+    private static final Logger logger = LogManager.getLogger(Controller.class);
 
+    private static final String[] commandList = {"list-nodes", "list-files", "init", "display-config"};
+    private final int port;
     private final ArrayList<ChunkData> chunkServerList;
+    private boolean isActive;
 
     public Controller(int port) {
         isActive = false;
@@ -27,6 +36,16 @@ public class Controller extends Node {
     }
 
     public static void main(String[] args) throws UnknownHostException {
+
+        boolean DEBUG = true;
+
+        if (DEBUG) {
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+            Configuration config = ctx.getConfiguration();
+            LoggerConfig loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
+            loggerConfig.setLevel(Level.ALL);
+            ctx.updateLoggers();  // This causes all Loggers to refetch information from their LoggerConfig.
+        }
 
         int port = 5000;
         //get the hostname and IP address
@@ -39,6 +58,7 @@ public class Controller extends Node {
         //create a server thread to listen to incoming connections
         Thread tcpServer = new Thread(new TCPServer(controller, port));
         tcpServer.start();
+
 
         //create the console
         Thread console = new Thread(new ConsoleParser(controller));
@@ -71,7 +91,7 @@ public class Controller extends Node {
 
     @Override
     public void onEvent(Event e, Socket socket) {
-        switch(e.getType()) {
+        switch (e.getType()) {
             // ChunkServer -> Controller
             case CHUNK_SERVER_SENDS_REGISTRATION:
                 chunkServerRegistration(e, socket);
@@ -99,7 +119,10 @@ public class Controller extends Node {
 
     private void chunkServerRegistration(Event e, Socket socket) {
         ChunkServerSendsRegistration request = (ChunkServerSendsRegistration) e;
-        chunkServerList.add(new ChunkData(request.getName(), request.getIP(), request.getPort()));
+        ChunkData temp = new ChunkData(request.getName(), request.getIP(), request.getPort());
+        chunkServerList.add(temp);
+
+        logger.debug("Received Registration Request: " + temp);
 
         //TODO: respond
     }
@@ -138,7 +161,11 @@ public class Controller extends Node {
      * Returns all information currently loaded in regarding the configuration of the cluster
      */
     public void showConfig() {
-        System.out.println();
+        System.out.println("**** NODES ****");
+        System.out.println("Nodes: " + chunkServerList.size());
+        for (ChunkData server : chunkServerList)
+            System.out.println(server);
+        System.out.println(" ************* ");
     }
 
     /**
@@ -158,6 +185,16 @@ public class Controller extends Node {
             ProcessBuilder pb = new ProcessBuilder("C:\\Program Files\\Git\\bin\\bash.exe",
                     "-c", "bash ./start_chunks.sh " + port);
             Process p = pb.start();
+
+            //get the output from the script, which includes just the information
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            StringBuilder builder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line);
+                builder.append(System.getProperty("line.separator"));
+            }
+            System.out.println(builder.toString());
 
         } catch (Exception e) {
             e.printStackTrace();

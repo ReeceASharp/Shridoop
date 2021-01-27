@@ -1,7 +1,5 @@
 package fileSystem.node.controller;
 
-import java.net.InetAddress;
-
 public class ChunkData {
     public final String name;
     public final String address;
@@ -11,6 +9,11 @@ public class ChunkData {
         this.name = name;
         this.address = address;
         this.port = port;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Name: %s, Address: %s, Port: %s", name, address, port);
     }
 
     //TODO: Keep track of the current chunks each server contains

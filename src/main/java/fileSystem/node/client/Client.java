@@ -4,12 +4,15 @@ import fileSystem.node.Node;
 import fileSystem.protocols.Event;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.net.Socket;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class Client extends Node {
+    private static final Logger logger = LogManager.getLogger(Client.class);
 
     final String[] commandList = {"connect", "add", "remove"};
 
@@ -58,11 +61,11 @@ public class Client extends Node {
      * Attempt to connect to the controller node
      */
     private void connect(String input) {
-        
+
     }
 
     private void sendRequest(String input, String requestType) {
-        switch(requestType) {
+        switch (requestType) {
             case "add":
                 break;
             case "remove":
@@ -72,7 +75,7 @@ public class Client extends Node {
 
     @Override
     public void onEvent(Event e, Socket socket) {
-        switch(e.getType()) {
+        switch (e.getType()) {
             // Controller -> Client
             case CONTROLLER_REPORTS_FILE_CHUNK_ADD_DESTINATION:
                 break;

@@ -12,5 +12,5 @@ do
   echo GO: "$1", CONNECTION: "${CHUNK[0]}", NAME: "${CHUNK[1]}"
 
   #start up a server
-  /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.server.ChunkServer ${CHUNK[0]} $1 ${CHUNK[1]}" &
+  /git-bash.exe -li -c "java -cp target/Distributed_File_System-1.0.jar fileSystem.node.server.ChunkServer ${CHUNK[0]} $1 ${CHUNK[1]}" &
 done < ./chunkServers

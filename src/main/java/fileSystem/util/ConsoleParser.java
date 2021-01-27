@@ -1,7 +1,10 @@
 package fileSystem.util;
 
 import fileSystem.node.Node;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.Arrays;
 import java.util.Scanner;
 
 import static fileSystem.util.ConsoleConstant.*;
@@ -11,7 +14,8 @@ Constructed by the relevant node, and allows commands to be entered there
 Valid nodes: Client, Controller, ChunkServer
  */
 public class ConsoleParser implements Runnable {
-
+    private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
+    private static final String[] basicCommands = {"commands", "help", "quit"};
     private final Node node;
     private final Scanner userInput;
 
@@ -34,6 +38,7 @@ public class ConsoleParser implements Runnable {
 
         node.cleanup();
 
+        logger.debug("EXITING CONSOLEPARSER");
     }
 
     private boolean parseInput() {
@@ -47,7 +52,9 @@ public class ConsoleParser implements Runnable {
         boolean tryCustom = false;
         switch (input.toLowerCase()) {
             case "commands":
-                response = node.getConsoleText(CONSOLE_COMMANDS);
+                //jank, but Arrays.toString() doesn't have adjustable parameters
+                response = (node.getConsoleText(CONSOLE_COMMANDS) + Arrays.toString(basicCommands))
+                        .replace("[", "").replace("]", "");
                 break;
             case "help":
                 response = node.getConsoleText(CONSOLE_HELP);

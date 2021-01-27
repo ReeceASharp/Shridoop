@@ -11,10 +11,13 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class ChunkServer extends Node {
+    private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
     //needed to display, not the most DRY
     final String[] commandList = {"list-files", "config"};
@@ -33,13 +36,15 @@ public class ChunkServer extends Node {
         final int portConnect = Integer.parseInt(args[1]);
         final String name = args[2];
 
+        logger.debug(String.format("PortListen: %d, PortConnect: %d, Name: %s", portListen, portConnect, name));
+
         //random port
         //int port = 0;
 
         //get the hostname and IP address
         InetAddress ip = InetAddress.getLocalHost();
         String host = ip.getHostName();
-        System.out.printf("IP: %s, Host: %s%n", ip.getHostAddress(), host);
+        logger.debug(String.format("IP: %s, Host: %s%n", ip.getHostAddress(), host));
 
         //get an object reference to be able to call functions and organize control flow
         ChunkServer server = new ChunkServer(portConnect, name);
@@ -65,17 +70,18 @@ public class ChunkServer extends Node {
      * @param node the ChunkServer sending the registration request
      * @param host The hostname/IP of the ChunkServer
      * @param port The port of the ChunkServer
-     * @return return whether or not the registration was sent
      * @throws IOException
      */
-    private static boolean sendRegistration(ChunkServer node, String host, int port) throws IOException {
-        //open a socket/connection with the Controller, and
+    private static void sendRegistration(ChunkServer node, String host, int port) throws IOException {
+        logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
+
+        //open a socket/connection with the Controller, and set variables to be referenced later
         Socket controllerSocket = new Socket(host, port);
         node.setControllerSocket(controllerSocket);
 
         //construct the message, and get the bytes
         byte[] marshalledBytes = new ChunkServerSendsRegistration(node.getServerIP(),
-                node.getServerPort(), node.getHostname()).getBytes();
+                node.getServerPort(), node.getName()).getBytes();
 
         //create a listener on this socket for the response from the Registry
         Thread receiver = new Thread(new TCPReceiver(node, controllerSocket));
@@ -83,8 +89,6 @@ public class ChunkServer extends Node {
 
         //Send the message to the Registry to attempt registration
         node.sendMessage(controllerSocket, marshalledBytes);
-
-        return true;
     }
 
     /**
@@ -121,7 +125,6 @@ public class ChunkServer extends Node {
             case CLIENT_REQUESTS_FILE_CHUNK:
                 break;
         }
-
     }
 
     @Override
@@ -148,7 +151,7 @@ public class ChunkServer extends Node {
     @Override
     protected String getIntro() {
         return "Distributed System ChunkServer (DEV ONLY), type " +
-                "'help for more details': ";
+                "'help' for more details: ";
     }
 
     @Override
@@ -156,8 +159,11 @@ public class ChunkServer extends Node {
         return commandList;
     }
 
+    public String getName() { return name; }
+
     @Override
     public void cleanup() {
         server.cleanup();
+        logger.debug("EXITING CHUNKSERVER");
     }
 }
