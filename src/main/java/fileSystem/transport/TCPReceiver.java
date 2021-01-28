@@ -29,6 +29,8 @@ public class TCPReceiver implements Runnable {
 
     @Override
     public void run() {
+        Thread.currentThread().setName(getClass().getSimpleName());
+
         // add reference to TCPServer to allow it to keep track of all current receiving threads for
         // this node and clean them up when exiting
         server.addConnection(this);
@@ -59,10 +61,10 @@ public class TCPReceiver implements Runnable {
 
             } catch (SocketException se) {
                 //TODO: implement logger
-                System.out.println("TCPReceiver::run::socketException: " + se.getMessage());
+                logger.error(se.getMessage() + ", " + socket);
                 break;
             } catch (IOException ioe) {
-                System.out.println("Connection closed, no longer listening to: " + socket.getRemoteSocketAddress());
+                logger.debug("Connection closed, no longer listening to: " + socket);
                 break;
             } catch (NullPointerException ne) {
                 ne.printStackTrace();

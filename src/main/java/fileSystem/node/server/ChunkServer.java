@@ -135,6 +135,8 @@ public class ChunkServer extends Node {
 
         //TODO: look at ControllerRequestsDeregistration for future feature info
 
+        logger.debug("Received Deregistration request");
+
         //respond
         byte[] marshalledBytes = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
                 getServerPort(), getName()).getBytes();

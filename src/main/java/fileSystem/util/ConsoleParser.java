@@ -27,6 +27,8 @@ public class ConsoleParser implements Runnable {
 
     @Override
     public void run() {
+        Thread.currentThread().setName(getClass().getSimpleName());
+
         System.out.println(node.getConsoleText(CONSOLE_INTRO));
 
         boolean quit;

@@ -1,13 +1,20 @@
 package fileSystem.transport;
 
+import fileSystem.node.controller.Controller;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * Organizes how marshalled data is sent
  */
 public class TCPSender implements Runnable {
+    private static final Logger logger = LogManager.getLogger(Controller.class);
+
     private final Socket socket;
     private final byte[] dataToSend;
 
@@ -18,6 +25,8 @@ public class TCPSender implements Runnable {
 
     @Override
     public void run() {
+        Thread.currentThread().setName(getClass().getSimpleName());
+
         //use known socket connection to send data
         int dataLength = dataToSend.length;
         try {
@@ -29,7 +38,10 @@ public class TCPSender implements Runnable {
                 dataOut.write(dataToSend, 0, dataLength);
                 dataOut.flush();
             }
-        } catch (IOException e) {
+        } catch (SocketException se) {
+            logger.error(socket);
+            se.printStackTrace();
+        }catch (IOException e) {
             e.printStackTrace();
         }
 

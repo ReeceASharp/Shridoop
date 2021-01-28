@@ -98,17 +98,31 @@ public class Controller extends Node {
             return;
         isActive = false;
         //Request that each server shutdown
-        for (ChunkData chunkServer : chunkServerList) {
-            byte[] marshalledBytes = new ControllerRequestsDeregistration().getBytes();
-            sendMessage(chunkServer.socket, marshalledBytes);
-        }
+
         try {
-            activeChunkServers = new CountDownLatch(chunkServerList.size());
+            synchronized (chunkServerList) {
+                activeChunkServers = new CountDownLatch(chunkServerList.size());
+                logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
+
+                for (ChunkData chunkServer : chunkServerList) {
+                    byte[] marshalledBytes = new ControllerRequestsDeregistration().getBytes();
+                    sendMessage(chunkServer.socket, marshalledBytes);
+                }
+
+            }
+            logger.debug("Waiting until all servers have exited");
             activeChunkServers.await();
+            logger.debug("All servers have responded, exiting");
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } catch (NullPointerException ne) {
+            synchronized (chunkServerList) {
+                logger.debug("Size: " + chunkServerList.size());
+                for (ChunkData chunkServer : chunkServerList) {
+                    logger.debug(chunkServer);
+                }
+            }
         }
-        chunkServerList.clear();
     }
 
     @Override
@@ -155,17 +169,21 @@ public class Controller extends Node {
         else
             logger.error(String.format("%s unsuccessfully showdown.", response.getName()));
 
-        activeChunkServers.countDown();
-
         // confirm the shutdown request
         byte[] marshalledBytes = new ControllerReportsShutdown().getBytes();
         sendMessage(socket, marshalledBytes);
+
+        //TODO: fix race condition
+        activeChunkServers.countDown();
     }
 
     private void chunkServerRegistration(Event e, Socket socket) {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
         ChunkData temp = new ChunkData(request.getName(), request.getIP(), request.getPort(), socket);
-        chunkServerList.add(temp);
+
+        synchronized (chunkServerList) {
+            chunkServerList.add(temp);
+        }
 
         logger.debug("Received Registration Request: " + temp);
 
@@ -199,12 +217,10 @@ public class Controller extends Node {
 
     @Override
     public void cleanup() {
-        //TODO: Tell all ChunkServers to exit, requires API
-        server.cleanup();
+        if(isActive)
+            stopChunkServers();
 
-        // Ugly exit method, but exits out of threads that we don't have access to anymore (TCPServer)
-        // Note: this could be refactored to maintain a reference to circumvent this, but that might be too jank
-        //System.exit(0);
+        server.cleanup();
     }
 
     /**

@@ -48,7 +48,9 @@ public class TCPServer implements Runnable {
 
     @Override
     public void run() {
-        logger.debug(String.format("[TCPSERVER] Port:%s, Socket:%s %n",
+        Thread.currentThread().setName(getClass().getSimpleName());
+
+        logger.debug(String.format("Port:%s, Socket:%s %n",
                 port, serverSocket.getLocalSocketAddress().toString()));
 
         //set a reference after it has been fully constructed

@@ -17,7 +17,7 @@ public class ChunkData {
 
     @Override
     public String toString() {
-        return String.format("Name: %s, Address: %s, Port: %s", name, address, port);
+        return String.format("Name: %s, Address: %s, Port: %s, %s", name, address, port, socket);
     }
 
     //TODO: Keep track of the current chunks each server contains
