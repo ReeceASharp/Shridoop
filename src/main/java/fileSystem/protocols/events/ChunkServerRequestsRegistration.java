@@ -4,22 +4,25 @@ import fileSystem.protocols.Event;
 
 import java.io.*;
 
-import static fileSystem.protocols.Protocol.CHUNK_SERVER_SENDS_REGISTRATION;
+import static fileSystem.protocols.Protocol.CHUNK_SERVER_REQUESTS_REGISTRATION;
 
-public class ChunkServerSendsRegistration implements Event {
-    static final int type = CHUNK_SERVER_SENDS_REGISTRATION;
+/**
+ * Sent from the Chunk Server to the Controller when it has finished setting up
+ */
+public class ChunkServerRequestsRegistration implements Event {
+    static final int type = CHUNK_SERVER_REQUESTS_REGISTRATION;
 
-    private final String destIP;
-    private final int destPort;
+    private final String originatingIP;
+    private final int originatingPort;
     private final String name;
 
-    public ChunkServerSendsRegistration(String ip, int port, String name) {
-        destIP = ip;
-        destPort = port;
+    public ChunkServerRequestsRegistration(String ip, int port, String name) {
+        originatingIP = ip;
+        originatingPort = port;
         this.name = name;
     }
 
-    public ChunkServerSendsRegistration(byte[] marshalledBytes) throws IOException {
+    public ChunkServerRequestsRegistration(byte[] marshalledBytes) throws IOException {
         //create a wrapper around the bytes to leverage some methods to easily extract values
         ByteArrayInputStream byteInStream = new ByteArrayInputStream(marshalledBytes);
         DataInputStream dataIn = new DataInputStream(new BufferedInputStream(byteInStream));
@@ -31,10 +34,10 @@ public class ChunkServerSendsRegistration implements Event {
         int ipLength = dataIn.readInt();
         byte[] ipBytes = new byte[ipLength];
         dataIn.readFully(ipBytes);
-        destIP = new String(ipBytes);
+        originatingIP = new String(ipBytes);
 
         //retrieve port
-        destPort = dataIn.readInt();
+        originatingPort = dataIn.readInt();
 
         //retrieve name
         int nameLength = dataIn.readInt();
@@ -65,12 +68,14 @@ public class ChunkServerSendsRegistration implements Event {
             dataOut.writeInt(type);
 
             //write IP address
-            byte[] ipBytes = destIP.getBytes();
+            //Note: this has to be done as a thread is sending this on a random port, not the main
+            //one the TCPServer is listening on for the ChunkServer
+            byte[] ipBytes = originatingIP.getBytes();
             dataOut.writeInt(ipBytes.length);
             dataOut.write(ipBytes);
 
             //write port
-            dataOut.writeInt(destPort);
+            dataOut.writeInt(originatingPort);
 
             byte[] nameBytes = name.getBytes();
             dataOut.writeInt(nameBytes.length);
@@ -92,11 +97,11 @@ public class ChunkServerSendsRegistration implements Event {
     }
 
     public String getIP() {
-        return destIP;
+        return originatingIP;
     }
 
     public int getPort() {
-        return destPort;
+        return originatingPort;
     }
 
     public String getName() {

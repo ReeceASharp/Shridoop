@@ -27,14 +27,12 @@ public class ConsoleParser implements Runnable {
 
     @Override
     public void run() {
+        System.out.println(node.getConsoleText(CONSOLE_INTRO));
 
-        String info = node.getConsoleText(CONSOLE_INTRO);
-        System.out.println(info);
-
-        boolean quit = false;
-        while (!quit) {
+        boolean quit;
+        do {
             quit = parseInput();
-        }
+        } while (!quit);
 
         node.cleanup();
 
@@ -68,7 +66,6 @@ public class ConsoleParser implements Runnable {
         }
 
         //Node specific console commands
-        //if (Arrays.asList(node.getCommands()).contains(input))
         if (tryCustom) {
             if (!node.handleCommand(input))
                 response = "ERROR: Invalid input. Enter 'help' for available commands.";
@@ -78,6 +75,5 @@ public class ConsoleParser implements Runnable {
             System.out.println(response);
 
         return quit;
-
     }
 }

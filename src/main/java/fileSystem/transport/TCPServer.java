@@ -60,8 +60,7 @@ public class TCPServer implements Runnable {
                 Socket clientSocket = serverSocket.accept();
 
                 //handle new incoming connection
-
-                new Thread(new TCPReceiver(node, clientSocket)).start();
+                new Thread(new TCPReceiver(node, clientSocket, this)).start();
 
             }
         } catch (SocketException e) {
@@ -83,6 +82,7 @@ public class TCPServer implements Runnable {
         for (TCPReceiver connection : currentConnections) {
             connection.cleanup();
         }
+        currentConnections.clear();
 
         logger.debug("EXITING TCPSERVER");
     }
@@ -93,6 +93,18 @@ public class TCPServer implements Runnable {
 
     public String getServerIP() {
         return serverSocket.getInetAddress().getHostName();
+    }
+
+    /**
+     * Adds a reference to the known connections the server has
+     * @param connection  a
+     */
+    public void addConnection(TCPReceiver connection) {
+        currentConnections.add(connection);
+    }
+
+    public void removeConnection(TCPReceiver connection) {
+        currentConnections.remove(connection);
     }
 
 }

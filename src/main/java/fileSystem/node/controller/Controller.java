@@ -2,7 +2,7 @@ package fileSystem.node.controller;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
-import fileSystem.protocols.events.ChunkServerSendsRegistration;
+import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 import org.apache.logging.log4j.Level;
@@ -12,22 +12,23 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class Controller extends Node {
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
-    private static final String[] commandList = {"list-nodes", "list-files", "init", "display-config"};
+    private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
     private final int port;
     private final ArrayList<ChunkData> chunkServerList;
     private boolean isActive;
+
+    private CountDownLatch activeChunkServers;
 
     public Controller(int port) {
         isActive = false;
@@ -80,6 +81,9 @@ public class Controller extends Node {
             case "initialize":
                 initialize();
                 break;
+            case "stop":
+                stopChunkServers();
+                break;
             case "display-config":
                 showConfig();
                 break;
@@ -89,12 +93,33 @@ public class Controller extends Node {
         return isValid;
     }
 
+    private void stopChunkServers() {
+        if (!isActive)
+            return;
+        isActive = false;
+        //Request that each server shutdown
+        for (ChunkData chunkServer : chunkServerList) {
+            byte[] marshalledBytes = new ControllerRequestsDeregistration().getBytes();
+            sendMessage(chunkServer.socket, marshalledBytes);
+        }
+        try {
+            activeChunkServers = new CountDownLatch(chunkServerList.size());
+            activeChunkServers.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        chunkServerList.clear();
+    }
+
     @Override
     public void onEvent(Event e, Socket socket) {
         switch (e.getType()) {
             // ChunkServer -> Controller
-            case CHUNK_SERVER_SENDS_REGISTRATION:
+            case CHUNK_SERVER_REQUESTS_REGISTRATION:
                 chunkServerRegistration(e, socket);
+                break;
+            case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
+                deregistrationResponse(e, socket);
                 break;
             case CHUNK_SERVER_REPORTS_MAJOR_HEARTBEAT:
                 break;
@@ -115,16 +140,41 @@ public class Controller extends Node {
             case CLIENT_REQUESTS_FILE_METADATA:
                 break;
         }
+
+    }
+
+    private void deregistrationResponse(Event e, Socket socket) {
+        ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
+
+        //create the relevant object to find using the overloaded equals operator for ChunkData
+        boolean removed = chunkServerList.remove(new ChunkData(response.getName(),
+                response.getIP(), response.getPort(), socket));
+
+        if (removed)
+            logger.info(String.format("%s successfully showdown.", response.getName()));
+        else
+            logger.error(String.format("%s unsuccessfully showdown.", response.getName()));
+
+        activeChunkServers.countDown();
+
+        // confirm the shutdown request
+        byte[] marshalledBytes = new ControllerReportsShutdown().getBytes();
+        sendMessage(socket, marshalledBytes);
     }
 
     private void chunkServerRegistration(Event e, Socket socket) {
-        ChunkServerSendsRegistration request = (ChunkServerSendsRegistration) e;
-        ChunkData temp = new ChunkData(request.getName(), request.getIP(), request.getPort());
+        ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
+        ChunkData temp = new ChunkData(request.getName(), request.getIP(), request.getPort(), socket);
         chunkServerList.add(temp);
 
         logger.debug("Received Registration Request: " + temp);
 
         //TODO: respond
+        byte[] marshalledBytes = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS).getBytes();
+
+        logger.debug("Responding to request on socket: " + socket.getLocalSocketAddress());
+        sendMessage(socket, marshalledBytes);
+
     }
 
     @Override
@@ -186,15 +236,16 @@ public class Controller extends Node {
                     "-c", "bash ./start_chunks.sh " + port);
             Process p = pb.start();
 
-            //get the output from the script, which includes just the information
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            StringBuilder builder = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-                builder.append(System.getProperty("line.separator"));
-            }
-            System.out.println(builder.toString());
+            //FIXME: This code chunk blocks, which blocks subsequent commands from being entered
+//            //get the output from the script, which includes just the information
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+//            StringBuilder builder = new StringBuilder();
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                builder.append(line);
+//                builder.append(System.getProperty("line.separator"));
+//            }
+//            System.out.println(builder.toString());
 
         } catch (Exception e) {
             e.printStackTrace();

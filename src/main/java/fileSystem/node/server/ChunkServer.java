@@ -2,29 +2,30 @@ package fileSystem.node.server;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
-import fileSystem.protocols.events.ChunkServerSendsRegistration;
+import fileSystem.protocols.events.ChunkServerReportsDeregistrationStatus;
+import fileSystem.protocols.events.ChunkServerRequestsRegistration;
+import fileSystem.protocols.events.ControllerReportsRegistrationStatus;
+import fileSystem.protocols.events.ControllerRequestsDeregistration;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class ChunkServer extends Node {
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
-    //needed to display, not the most DRY
+    //needed for console commands, not the most DRY
     final String[] commandList = {"list-files", "config"};
     private final int controllerPort;
     private final String name;
-
-    private Socket controllerSocket;
 
     public ChunkServer(int portConnect, String name) {
         this.controllerPort = portConnect;
@@ -65,26 +66,25 @@ public class ChunkServer extends Node {
     }
 
     /**
-     * Chunk Server wants to register with the Controller, throw a message at it to check
+     * Chunk Server wants to register with the Controller after setting up, throw a message at it to check
      *
      * @param node the ChunkServer sending the registration request
      * @param host The hostname/IP of the ChunkServer
      * @param port The port of the ChunkServer
-     * @throws IOException
+     * @throws IOException thrown if the socket creation fails for some reason
      */
     private static void sendRegistration(ChunkServer node, String host, int port) throws IOException {
         logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //open a socket/connection with the Controller, and set variables to be referenced later
         Socket controllerSocket = new Socket(host, port);
-        node.setControllerSocket(controllerSocket);
 
         //construct the message, and get the bytes
-        byte[] marshalledBytes = new ChunkServerSendsRegistration(node.getServerIP(),
+        byte[] marshalledBytes = new ChunkServerRequestsRegistration(node.getServerIP(),
                 node.getServerPort(), node.getName()).getBytes();
 
-        //create a listener on this socket for the response from the Registry
-        Thread receiver = new Thread(new TCPReceiver(node, controllerSocket));
+        //create a listener on this new connection to listen for future requests/responses
+        Thread receiver = new Thread(new TCPReceiver(node, controllerSocket, node.server));
         receiver.start();
 
         //Send the message to the Registry to attempt registration
@@ -98,15 +98,18 @@ public class ChunkServer extends Node {
         System.out.printf("ServerName: '%s', ControllerPort: '%s'%n", name, controllerPort);
     }
 
-    private void setControllerSocket(Socket controllerSocket) {
-        this.controllerSocket = controllerSocket;
-    }
-
     @Override
     public void onEvent(Event e, Socket socket) {
         switch (e.getType()) {
             // Controller -> ChunkServer
             case CONTROLLER_REPORTS_REGISTRATION_STATUS:
+                registrationStatus(e);
+                break;
+            case CONTROLLER_REQUESTS_DEREGISTRATION:
+                deregistration(e, socket);
+                break;
+            case CONTROLLER_REPORTS_SHUTDOWN:
+                cleanup();
                 break;
             case CONTROLLER_REQUESTS_MAJOR_HEARTBEAT:
                 break;
@@ -125,6 +128,34 @@ public class ChunkServer extends Node {
             case CLIENT_REQUESTS_FILE_CHUNK:
                 break;
         }
+    }
+
+    private void deregistration(Event e, Socket socket) {
+        ControllerRequestsDeregistration request = (ControllerRequestsDeregistration) e;
+
+        //TODO: look at ControllerRequestsDeregistration for future feature info
+
+        //respond
+        byte[] marshalledBytes = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
+                getServerPort(), getName()).getBytes();
+
+        sendMessage(socket, marshalledBytes);
+    }
+
+    private void registrationStatus(Event e) {
+        ControllerReportsRegistrationStatus response = (ControllerReportsRegistrationStatus) e;
+
+        switch (response.getStatus()) {
+            case RESPONSE_SUCCESS:
+                logger.info("ChunkServer successfully registered and setup with Controller");
+                break;
+            case RESPONSE_FAILURE:
+                logger.error("ChunkServer failed to register with Controller");
+                break;
+            default:
+                logger.error("ERROR: incorrect message response type received");
+        }
+
     }
 
     @Override
@@ -159,11 +190,19 @@ public class ChunkServer extends Node {
         return commandList;
     }
 
-    public String getName() { return name; }
+    public String getName() {
+        return name;
+    }
 
     @Override
     public void cleanup() {
-        server.cleanup();
         logger.debug("EXITING CHUNKSERVER");
+
+        server.cleanup();
+
+        // Note: because the console has a Scanner waiting for an input from System.in,
+        // the only real way to exit is via the System, which is fine considering the
+        // server was shut down gracefully
+        System.exit(0);
     }
 }

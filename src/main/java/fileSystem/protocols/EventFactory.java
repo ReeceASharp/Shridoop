@@ -1,6 +1,6 @@
 package fileSystem.protocols;
 
-import fileSystem.protocols.events.ChunkServerSendsRegistration;
+import fileSystem.protocols.events.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -25,7 +25,11 @@ public class EventFactory {
         switch (eventType) {
             // Controller -> ChunkServer
             case CONTROLLER_REPORTS_REGISTRATION_STATUS:
-                break;
+                return new ControllerReportsRegistrationStatus(marshalledBytes);
+            case CONTROLLER_REQUESTS_DEREGISTRATION:
+                return new ControllerRequestsDeregistration(marshalledBytes);
+            case CONTROLLER_REPORTS_SHUTDOWN:
+                return new ControllerReportsShutdown(marshalledBytes);
             case CONTROLLER_REQUESTS_MAJOR_HEARTBEAT:
                 break;
             case CONTROLLER_REQUESTS_MINOR_HEARTBEAT:
@@ -33,8 +37,10 @@ public class EventFactory {
             case CONTROLLER_REQUESTS_FILE_METADATA:
                 break;
             // ChunkServer -> Controller
-            case CHUNK_SERVER_SENDS_REGISTRATION:
-                return new ChunkServerSendsRegistration(marshalledBytes);
+            case CHUNK_SERVER_REQUESTS_REGISTRATION:
+                return new ChunkServerRequestsRegistration(marshalledBytes);
+            case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
+                return new ChunkServerReportsDeregistrationStatus(marshalledBytes);
             case CHUNK_SERVER_REPORTS_MAJOR_HEARTBEAT:
                 break;
             case CHUNK_SERVER_REPORTS_MINOR_HEARTBEAT:

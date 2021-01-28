@@ -4,7 +4,6 @@ import fileSystem.protocols.Event;
 import fileSystem.transport.TCPSender;
 import fileSystem.transport.TCPServer;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -25,7 +24,7 @@ public abstract class Node {
      * As a result this must be an abstract class
      *
      * @param type text type to return
-     * @return
+     * @return returns the relevant text for the console to display
      */
     public String getConsoleText(int type) {
         switch (type) {
@@ -45,9 +44,8 @@ public abstract class Node {
      *
      * @param socket          The pipe through which data is being sent through
      * @param marshalledBytes The data being sent, the first 4 bytes are expected to be stored as the type
-     * @throws IOException
      */
-    protected void sendMessage(Socket socket, byte[] marshalledBytes) throws IOException {
+    protected void sendMessage(Socket socket, byte[] marshalledBytes) {
         new Thread(new TCPSender(socket, marshalledBytes)).start();
     }
 
