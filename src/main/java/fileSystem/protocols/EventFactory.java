@@ -7,6 +7,10 @@ import java.nio.ByteBuffer;
 
 import static fileSystem.protocols.Protocol.*;
 
+/**
+ * Basic Factory pattern to construct events, both for converting to a series of marshalledBytes
+ * and for reconstructing on the receiving end
+ */
 public class EventFactory {
 
     private static final EventFactory instance = new EventFactory();

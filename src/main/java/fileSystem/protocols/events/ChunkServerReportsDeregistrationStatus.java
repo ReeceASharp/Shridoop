@@ -6,6 +6,10 @@ import java.io.*;
 
 import static fileSystem.protocols.Protocol.CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS;
 
+/**
+ * Sent from the ChunkServer to the Controller confirming its request for deregistration, and by
+ * extension shutdown
+ */
 public class ChunkServerReportsDeregistrationStatus implements Event {
     static final int type = CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS;
 
@@ -104,6 +108,7 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
     public int getStatus() {
         return status;
     }
+
     public String getIP() {
         return originatingIP;
     }

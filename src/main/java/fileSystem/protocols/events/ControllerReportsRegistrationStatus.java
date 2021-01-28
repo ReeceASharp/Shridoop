@@ -6,6 +6,9 @@ import java.io.*;
 
 import static fileSystem.protocols.Protocol.CONTROLLER_REPORTS_REGISTRATION_STATUS;
 
+/**
+ * Sent from the Controller to the ChunkServer acknowledging the server is setup and ready to go
+ */
 public class ControllerReportsRegistrationStatus implements Event {
     static final int type = CONTROLLER_REPORTS_REGISTRATION_STATUS;
 
