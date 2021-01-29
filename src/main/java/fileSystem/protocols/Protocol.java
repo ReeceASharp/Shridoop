@@ -80,6 +80,8 @@ public class Protocol {
     public static final int RESPONSE_SUCCESS = 1;
     public static final int RESPONSE_FAILURE = 2;
 
+    public static final int HEARTBEAT_MINOR = 3;
+    public static final int HEARTBEAT_MAJOR = 4;
 
     // Controller -> ChunkServer
     public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 10;
