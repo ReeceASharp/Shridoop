@@ -36,6 +36,8 @@ public class EventFactory {
                 return new ControllerReportsShutdown(marshalledBytes);
             case CONTROLLER_REQUESTS_FILE_METADATA:
                 break;
+            case CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT:
+                return new ControllerRequestsFunctionalHeartbeat(marshalledBytes);
             // ChunkServer -> Controller
             case CHUNK_SERVER_REQUESTS_REGISTRATION:
                 return new ChunkServerRequestsRegistration(marshalledBytes);
@@ -47,6 +49,8 @@ public class EventFactory {
                 return new ChunkServerSendsMinorHeartbeat(marshalledBytes);
             case CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA:
                 break;
+            case CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT:
+                return new ChunkServerReportsFunctionalHeartbeat(marshalledBytes);
             // ChunkServer -> ChunkServer
             case CHUNK_SERVER_REQUESTS_REPLICATION:
                 break;

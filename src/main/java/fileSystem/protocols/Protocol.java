@@ -13,8 +13,8 @@ Different Paths
         ControllerReportsRegistrationStatus
     - Request shutdown
         ControllerRequestsDeregistration
-    - Request Heartbeat
-        ControllerRequestsHeartbeat
+    - Request Heartbeat that ChunkServer is still alive
+        ControllerRequestsFunctionalHeartbeat
     - Request current files (metadata)
         ControllerRequestsFileMetadata
 
@@ -86,6 +86,7 @@ public class Protocol {
     public static final int CONTROLLER_REQUESTS_DEREGISTRATION = 11;
     public static final int CONTROLLER_REPORTS_SHUTDOWN = 12;
     public static final int CONTROLLER_REQUESTS_FILE_METADATA = 13;
+    public static final int CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT = 14;
 
     // ChunkServer -> Controller
     public static final int CHUNK_SERVER_REQUESTS_REGISTRATION = 20;
@@ -93,6 +94,7 @@ public class Protocol {
     public static final int CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT = 22;
     public static final int CHUNK_SERVER_SENDS_MINOR_HEARTBEAT = 23;
     public static final int CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA = 24;
+    public static final int CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT = 25;
 
     // ChunkServer -> ChunkServer
     public static final int CHUNK_SERVER_REQUESTS_REPLICATION = 30;
