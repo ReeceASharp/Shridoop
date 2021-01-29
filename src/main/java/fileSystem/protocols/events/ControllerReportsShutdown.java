@@ -1,6 +1,9 @@
 package fileSystem.protocols.events;
 
 import fileSystem.protocols.Event;
+import fileSystem.protocols.InputWrapper;
+import fileSystem.protocols.OutputWrapper;
+import jdk.internal.util.xml.impl.Input;
 
 import java.io.*;
 
@@ -20,16 +23,13 @@ public class ControllerReportsShutdown implements Event {
     }
 
     public ControllerReportsShutdown(byte[] marshalledBytes) throws IOException {
-        //create a wrapper around the bytes to leverage some methods to easily extract values
-        ByteArrayInputStream byteInStream = new ByteArrayInputStream(marshalledBytes);
-        DataInputStream dataIn = new DataInputStream(new BufferedInputStream(byteInStream));
 
-        //disregard, the buffer starts at the beginning of the byte array
-        dataIn.readInt();
+        InputWrapper wrapper = new InputWrapper(marshalledBytes);
+
+        //this class is a bit empty, could possibly pass some sort of verification
 
         //close wrapper streams
-        byteInStream.close();
-        dataIn.close();
+        wrapper.close();
     }
 
     @Override
@@ -41,20 +41,14 @@ public class ControllerReportsShutdown implements Event {
     public byte[] getBytes() {
         byte[] data = null;
         //create a wrapper around the bytes to leverage some methods to easily extract values
-        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-        DataOutputStream dataOut = new DataOutputStream(new BufferedOutputStream(byteOutStream));
+
 
         try {
+            OutputWrapper wrapper = new OutputWrapper(type);
             //write event type to decode on arrival
-            dataOut.writeInt(type);
+            wrapper.dataOut.writeInt(type);
 
-            //ensure all is written before the buffer is converted to a byte array
-            dataOut.flush();
-
-            data = byteOutStream.toByteArray();
-
-            byteOutStream.close();
-            dataOut.close();
+            data = wrapper.flushAndGetBytes();
         } catch (IOException e) {
             //failed for some reason
             e.printStackTrace();

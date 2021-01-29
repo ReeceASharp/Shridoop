@@ -1,6 +1,7 @@
 package fileSystem.protocols.events;
 
 import fileSystem.protocols.Event;
+import fileSystem.protocols.OutputWrapper;
 
 import java.io.*;
 
@@ -60,10 +61,10 @@ public class ChunkServerRequestsRegistration implements Event {
     public byte[] getBytes() {
         byte[] data = null;
         //create a wrapper around the bytes to leverage some methods to easily extract values
-        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-        DataOutputStream dataOut = new DataOutputStream(new BufferedOutputStream(byteOutStream));
 
         try {
+            OutputWrapper wrapper = new OutputWrapper(type);
+            DataOutputStream dataOut = wrapper.getDataOut();
             //write event type to decode on arrival
             dataOut.writeInt(type);
 
@@ -82,12 +83,7 @@ public class ChunkServerRequestsRegistration implements Event {
             dataOut.write(nameBytes);
 
             //ensure all is written before the buffer is converted to a byte array
-            dataOut.flush();
-
-            data = byteOutStream.toByteArray();
-
-            byteOutStream.close();
-            dataOut.close();
+            data = wrapper.flushAndGetBytes();
         } catch (IOException e) {
             //failed for some reason
             e.printStackTrace();

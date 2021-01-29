@@ -1,6 +1,8 @@
 package fileSystem.protocols.events;
 
 import fileSystem.protocols.Event;
+import fileSystem.protocols.InputWrapper;
+import fileSystem.protocols.OutputWrapper;
 
 import java.io.*;
 
@@ -26,11 +28,8 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
     }
 
     public ChunkServerReportsDeregistrationStatus(byte[] marshalledBytes) throws IOException {
-        ByteArrayInputStream byteInStream = new ByteArrayInputStream(marshalledBytes);
-        DataInputStream dataIn = new DataInputStream(new BufferedInputStream(byteInStream));
-
-        //disregard, the buffer starts at the beginning of the byte array
-        dataIn.readInt();
+        InputWrapper wrapper = new InputWrapper(marshalledBytes);
+        DataInputStream dataIn = wrapper.getDataIn();
 
         //read in the status of the message, handle appropriately
         this.status = dataIn.readInt();
@@ -52,8 +51,7 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
 
 
         //close wrapper streams
-        byteInStream.close();
-        dataIn.close();
+        wrapper.close();
     }
 
     @Override
@@ -66,10 +64,11 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
 
         byte[] data = null;
         //create a wrapper around the bytes to leverage some methods to easily extract values
-        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-        DataOutputStream dataOut = new DataOutputStream(new BufferedOutputStream(byteOutStream));
 
         try {
+            OutputWrapper wrapper = new OutputWrapper(type);
+            DataOutputStream dataOut = wrapper.getDataOut();
+
             //write event type to decode on arrival
             dataOut.writeInt(type);
 
@@ -90,19 +89,12 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
             dataOut.writeInt(nameBytes.length);
             dataOut.write(nameBytes);
 
-            dataOut.flush();
-
-            data = byteOutStream.toByteArray();
-
-            byteOutStream.close();
-            dataOut.close();
+            data = wrapper.flushAndGetBytes();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return data;
-
     }
 
     public int getStatus() {

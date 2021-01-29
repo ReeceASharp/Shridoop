@@ -1,6 +1,7 @@
 package fileSystem.protocols.events;
 
 import fileSystem.protocols.Event;
+import fileSystem.protocols.OutputWrapper;
 
 import java.io.*;
 
@@ -43,22 +44,16 @@ public class ControllerReportsRegistrationStatus implements Event {
 
         byte[] data = null;
         //create a wrapper around the bytes to leverage some methods to easily extract values
-        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-        DataOutputStream dataOut = new DataOutputStream(new BufferedOutputStream(byteOutStream));
+
 
         try {
-            //write event type to decode on arrival
-            dataOut.writeInt(type);
+            OutputWrapper wrapper = new OutputWrapper(type);
+            DataOutputStream dataOut = wrapper.getDataOut();
 
             //write response status type
             dataOut.writeInt(status);
 
-            dataOut.flush();
-
-            data = byteOutStream.toByteArray();
-
-            byteOutStream.close();
-            dataOut.close();
+            data = wrapper.flushAndGetBytes();
 
         } catch (IOException e) {
             e.printStackTrace();

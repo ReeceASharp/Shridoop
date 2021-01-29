@@ -13,10 +13,8 @@ Different Paths
         ControllerReportsRegistrationStatus
     - Request shutdown
         ControllerRequestsDeregistration
-    - Send out major Heartbeat
-        ControllerRequestsMajorHeartbeat
-    - Send out minor Heartbeat
-        ControllerRequestsMinorHeartbeat
+    - Request Heartbeat
+        ControllerRequestsHeartbeat
     - Request current files (metadata)
         ControllerRequestsFileMetadata
 
@@ -25,8 +23,8 @@ Different Paths
         ChunkServerSendRegistration
     - Respond to shutdown
         ChunkServerReportsDeregistrationStatus
-    - Respond to major heartbeat
-        ChunkServerReportsMajorHeartbeat
+    - Respond to heartbeat
+        ChunkServerReportsHeartbeat
     - Respond to minor heartbeat
         ChunkServerReportsMinorHeartbeat
     - Respond with current files (metadata)
@@ -87,15 +85,13 @@ public class Protocol {
     public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 10;
     public static final int CONTROLLER_REQUESTS_DEREGISTRATION = 11;
     public static final int CONTROLLER_REPORTS_SHUTDOWN = 12;
-    public static final int CONTROLLER_REQUESTS_MAJOR_HEARTBEAT = 13;
-    public static final int CONTROLLER_REQUESTS_MINOR_HEARTBEAT = 14;
-    public static final int CONTROLLER_REQUESTS_FILE_METADATA = 15;
+    public static final int CONTROLLER_REQUESTS_FILE_METADATA = 13;
 
     // ChunkServer -> Controller
     public static final int CHUNK_SERVER_REQUESTS_REGISTRATION = 20;
     public static final int CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS = 21;
-    public static final int CHUNK_SERVER_REPORTS_MAJOR_HEARTBEAT = 22;
-    public static final int CHUNK_SERVER_REPORTS_MINOR_HEARTBEAT = 23;
+    public static final int CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT = 22;
+    public static final int CHUNK_SERVER_SENDS_MINOR_HEARTBEAT = 23;
     public static final int CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA = 24;
 
     // ChunkServer -> ChunkServer
