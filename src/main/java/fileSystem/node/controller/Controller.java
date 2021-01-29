@@ -17,6 +17,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
@@ -57,7 +58,9 @@ public class Controller extends Node {
         Controller controller = new Controller(port);
 
         //create a server thread to listen to incoming connections
-        Thread tcpServer = new Thread(new TCPServer(controller, port));
+        Semaphore setupLock = new Semaphore(1);
+        setupLock.tryAcquire();
+        Thread tcpServer = new Thread(new TCPServer(controller, port, setupLock));
         tcpServer.start();
 
 

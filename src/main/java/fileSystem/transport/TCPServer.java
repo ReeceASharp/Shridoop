@@ -9,6 +9,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.Lock;
 
 //TODO: Potentially refactor to have a variant for the Controller to utilize a threadpool instead
 
@@ -23,16 +25,18 @@ public class TCPServer implements Runnable {
     private final Node node;
     private final int port;
     private ServerSocket serverSocket;
+    private Semaphore setupLock;
 
     // Constructor, calls the main constructor with a port # of 0 will pick a random port
-    public TCPServer(Node node) {
-        this(node, 0);
+    public TCPServer(Node node, Semaphore setupLock) {
+        this(node, 0, setupLock);
     }
 
     // Constructor that is used if a certain port must be used for the server
-    public TCPServer(Node node, int port) {
+    public TCPServer(Node node, int port, Semaphore setupLock) {
         this.node = node;
         this.port = port;
+        this.setupLock = setupLock;
 
         currentConnections = new ArrayList<>();
 
@@ -57,6 +61,11 @@ public class TCPServer implements Runnable {
         node.setTCPServer(this);
 
         try {
+            // Note: this is used when sending a connection request out. It requires a lock
+            // to ensure the server has completed its configuration before allowing other threads to grab
+            // information from it to send away
+            setupLock.release();
+
             while (true) {
                 //block for incoming connections
                 Socket clientSocket = serverSocket.accept();

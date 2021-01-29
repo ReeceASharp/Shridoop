@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.Socket;
+import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
@@ -27,12 +28,16 @@ public class Client extends Node {
         Client client = new Client();
 
         //create a server thread to listen to incoming connections
-        Thread tcpServer = new Thread(new TCPServer(client, port));
+        Semaphore setupLock = new Semaphore(1);
+        setupLock.tryAcquire();
+        Thread tcpServer = new Thread(new TCPServer(client, port, setupLock));
         tcpServer.start();
 
         //Console parser
         Thread console = new Thread(new ConsoleParser(client));
         console.start();
+
+        //TODO: send connection, or use console
 
     }
 

@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.Lock;
 
 import static fileSystem.protocols.Protocol.*;
 
@@ -51,7 +53,9 @@ public class ChunkServer extends Node {
         ChunkServer server = new ChunkServer(portConnect, name);
 
         //create a server thread to listen to incoming connections
-        Thread tcpServer = new Thread(new TCPServer(server, portListen));
+        Semaphore setupLock = new Semaphore(1);
+        setupLock.tryAcquire();
+        Thread tcpServer = new Thread(new TCPServer(server, portListen, setupLock));
         tcpServer.start();
 
         //create the console, this may not be needed for the chunkServer, but could be useful for debugging
@@ -59,8 +63,9 @@ public class ChunkServer extends Node {
         console.start();
 
         try {
+            setupLock.acquire();
             sendRegistration(server, host, portConnect);
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
