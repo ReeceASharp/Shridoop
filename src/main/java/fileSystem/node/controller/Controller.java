@@ -5,6 +5,7 @@ import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
+import fileSystem.util.HeartbeatTimer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,11 +24,16 @@ import static fileSystem.protocols.Protocol.*;
 public class Controller extends Node {
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
+    //properties
     private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
     private final int port;
     private final ArrayList<ChunkData> chunkServerList;
-    private boolean isActive;
 
+    //control flow
+    private boolean isActive;
+    private HeartbeatTimer timer;
+
+    // Synchronization
     private CountDownLatch activeChunkServers;
 
     public Controller(int port) {
@@ -55,16 +61,21 @@ public class Controller extends Node {
         System.out.printf("[CONTROLLER] IP: %s, Host: %s%n", ip.getHostAddress(), host);
 
         Controller controller = new Controller(port);
+        controller.configure();
 
         //create a server thread to listen to incoming connections
         Thread tcpServer = new Thread(new TCPServer(controller, port));
         tcpServer.start();
 
-
         //create the console
         Thread console = new Thread(new ConsoleParser(controller));
         console.start();
+    }
 
+    private void configure() {
+        // Note: as this class uses a reference to the controller, it must be constructed after the Controller
+        // constructor to make sure it's fully setup
+        timer = new HeartbeatTimer(5, 9, this);
     }
 
     @Override
@@ -93,12 +104,27 @@ public class Controller extends Node {
         return isValid;
     }
 
-    private void stopChunkServers() {
-        if (!isActive)
-            return;
-        isActive = false;
-        //Request that each server shutdown
+    public void sendHeartbeat(int status) {
+        switch (status) {
+            case HEARTBEAT_MINOR:
+                logger.debug("SENDING OUT MINOR HEARTBEAT");
+                break;
+            case HEARTBEAT_MAJOR:
+                logger.debug("SENDING OUT MAJOR HEARTBEAT");
+                break;
+        }
 
+    }
+
+    private void stopChunkServers() {
+        if (!isActive) {
+            System.out.println("Cluster isn't currently active");
+            return;
+        }
+        isActive = false;
+        timer.stop();
+
+        //Request that each server shutdown
         try {
             synchronized (chunkServerList) {
                 activeChunkServers = new CountDownLatch(chunkServerList.size());
@@ -173,7 +199,6 @@ public class Controller extends Node {
         byte[] marshalledBytes = new ControllerReportsShutdown().getBytes();
         sendMessage(socket, marshalledBytes);
 
-        //TODO: fix race condition
         activeChunkServers.countDown();
     }
 
@@ -214,10 +239,9 @@ public class Controller extends Node {
         return commandList;
     }
 
-
     @Override
     public void cleanup() {
-        if(isActive)
+        if (isActive)
             stopChunkServers();
 
         server.cleanup();
@@ -266,5 +290,7 @@ public class Controller extends Node {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        // As an alternative to the above blocking call, simply read the chunkServers file, and setup a
     }
 }
