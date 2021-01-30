@@ -1,11 +1,9 @@
 package fileSystem.node.server;
 
+import fileSystem.node.Heartbeat;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
-import fileSystem.protocols.events.ChunkServerReportsDeregistrationStatus;
-import fileSystem.protocols.events.ChunkServerRequestsRegistration;
-import fileSystem.protocols.events.ControllerReportsRegistrationStatus;
-import fileSystem.protocols.events.ControllerRequestsDeregistration;
+import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
@@ -17,11 +15,10 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.Lock;
 
 import static fileSystem.protocols.Protocol.*;
 
-public class ChunkServer extends Node {
+public class ChunkServer extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
     //needed for console commands, not the most DRY
@@ -116,9 +113,8 @@ public class ChunkServer extends Node {
             case CONTROLLER_REPORTS_SHUTDOWN:
                 cleanup();
                 break;
-            case CONTROLLER_REQUESTS_MAJOR_HEARTBEAT:
-                break;
-            case CONTROLLER_REQUESTS_MINOR_HEARTBEAT:
+            case CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT:
+                respondWithStatus(socket);
                 break;
             case CONTROLLER_REQUESTS_FILE_METADATA:
                 break;
@@ -133,6 +129,18 @@ public class ChunkServer extends Node {
             case CLIENT_REQUESTS_FILE_CHUNK:
                 break;
         }
+    }
+
+    /**
+     * Simply responding with the current status of the ChunkServer. For the most part the status shouldn't be
+     * needed until more features are implemented. In the future error-checking/corrupted file chunks could be a status,
+     * but at the moment simply sending a response to the Controller means the ChunkServer is still alive
+     *
+     * @param socket
+     */
+    private void respondWithStatus(Socket socket) {
+        byte[] marshalledBytes = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS).getBytes();
+        sendMessage(socket, marshalledBytes);
     }
 
     private void deregistration(Event e, Socket socket) {
@@ -211,5 +219,10 @@ public class ChunkServer extends Node {
         // the only real way to exit is via the System, which is fine considering the
         // server was shut down gracefully
         System.exit(0);
+    }
+
+    @Override
+    public void onHeartBeat() {
+        //send out a current summary of changes to the ChunkServer since the last heartbeat
     }
 }

@@ -63,8 +63,9 @@ public class TCPServer implements Runnable {
         try {
             // Note: this is used when sending a connection request out. It requires a lock
             // to ensure the server has completed its configuration before allowing other threads to grab
-            // information from it to send away
-            setupLock.release();
+            // information from it to send away, but it is only used if a setup lock was pass in
+            if (setupLock != null)
+                setupLock.release();
 
             while (true) {
                 //block for incoming connections

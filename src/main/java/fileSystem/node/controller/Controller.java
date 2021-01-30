@@ -1,17 +1,15 @@
 package fileSystem.node.controller;
 
+import fileSystem.node.Heartbeat;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 import fileSystem.util.HeartbeatTimer;
-import org.apache.logging.log4j.Level;
+import fileSystem.util.LogConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
 
 import java.net.InetAddress;
 import java.net.Socket;
@@ -22,7 +20,7 @@ import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
-public class Controller extends Node {
+public class Controller extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
     //properties
@@ -34,7 +32,7 @@ public class Controller extends Node {
     private boolean isActive;
     private HeartbeatTimer timer;
 
-    // Synchronization
+    // Synchronization for startup and shutdown
     private CountDownLatch activeChunkServers;
 
     public Controller(int port) {
@@ -45,34 +43,39 @@ public class Controller extends Node {
 
     public static void main(String[] args) throws UnknownHostException {
 
+        // Inputs (Eventually)
         boolean DEBUG = true;
-
-        if (DEBUG) {
-            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            Configuration config = ctx.getConfiguration();
-            LoggerConfig loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
-            loggerConfig.setLevel(Level.ALL);
-            ctx.updateLoggers();  // This causes all Loggers to refetch information from their LoggerConfig.
-        }
-
         int port = 5000;
+
+        //setup debug mode logging if parameter was passed
+        if (DEBUG)
+            LogConfiguration.debug();
+
+
         //get the hostname and IP address
         InetAddress ip = InetAddress.getLocalHost();
         String host = ip.getHostName();
-        System.out.printf("[CONTROLLER] IP: %s, Host: %s%n", ip.getHostAddress(), host);
+
+        logger.info(String.format("IP: %s, Host: %s%n", ip.getHostAddress(), host));
 
         Controller controller = new Controller(port);
         controller.configure();
 
-        //create a server thread to listen to incoming connections
-        Semaphore setupLock = new Semaphore(1);
-        setupLock.tryAcquire();
-        Thread tcpServer = new Thread(new TCPServer(controller, port, setupLock));
+        // create a server thread to listen to incoming connections, the semaphore isn't currently used here, only in
+        // the ChunkServer, but will if the controller needs to send off a connection upon startup
+
+        Thread tcpServer = new Thread(new TCPServer(controller, port, null));
         tcpServer.start();
 
         //create the console
         Thread console = new Thread(new ConsoleParser(controller));
         console.start();
+    }
+
+    @Override
+    public void onHeartBeat() {
+        //send out requests to each of the current ChunkServers to make sure no failures have occurred
+
     }
 
     private void configure() {
@@ -164,11 +167,11 @@ public class Controller extends Node {
             case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
                 deregistrationResponse(e, socket);
                 break;
-            case CHUNK_SERVER_REPORTS_MAJOR_HEARTBEAT:
-                break;
-            case CHUNK_SERVER_REPORTS_MINOR_HEARTBEAT:
-                break;
             case CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA:
+                break;
+            case CHUNK_SERVER_SENDS_MINOR_HEARTBEAT:
+                break;
+            case CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT:
                 break;
 
             // Client -> Controller

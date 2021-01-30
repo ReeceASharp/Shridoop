@@ -18,6 +18,7 @@ public class HeartbeatTimer {
     private final int beatsBetweenMajor;
     // beat #
     private int currentBeats;
+    private boolean isActive;
 
 
     private final Controller controller;
@@ -27,17 +28,21 @@ public class HeartbeatTimer {
         this.beatsBetweenMajor = beatsBetweenMajor;
         this.controller = controller;
 
+        this.isActive = false;
         currentBeats = 0;
     }
 
     public void start() {
-        //create a new timer, and schedule to start at delay
-        beatTimer = new Timer("Heartbeat Timer");
-        beatTimer.scheduleAtFixedRate(new beatEvent(), heartbeatDelay * 1000, heartbeatDelay * 1000);
+        if (!isActive) {
+            //create a new timer, and schedule to start at delay
+            beatTimer = new Timer("Heartbeat Timer");
+            beatTimer.scheduleAtFixedRate(new beatEvent(), heartbeatDelay * 1000, heartbeatDelay * 1000);
+        }
     }
 
     public void stop() {
-        beatTimer.cancel();
+        if (this.isActive)
+            beatTimer.cancel();
     }
 
 

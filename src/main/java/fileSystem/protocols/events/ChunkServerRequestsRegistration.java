@@ -1,6 +1,7 @@
 package fileSystem.protocols.events;
 
 import fileSystem.protocols.Event;
+import fileSystem.protocols.InputWrapper;
 import fileSystem.protocols.OutputWrapper;
 
 import java.io.*;
@@ -25,11 +26,8 @@ public class ChunkServerRequestsRegistration implements Event {
 
     public ChunkServerRequestsRegistration(byte[] marshalledBytes) throws IOException {
         //create a wrapper around the bytes to leverage some methods to easily extract values
-        ByteArrayInputStream byteInStream = new ByteArrayInputStream(marshalledBytes);
-        DataInputStream dataIn = new DataInputStream(new BufferedInputStream(byteInStream));
-
-        //disregard, the buffer starts at the beginning of the byte array
-        dataIn.readInt();
+        InputWrapper wrapper = new InputWrapper(marshalledBytes);
+        DataInputStream dataIn = wrapper.getDataIn();
 
         //retrieve IP address
         int ipLength = dataIn.readInt();
@@ -47,9 +45,7 @@ public class ChunkServerRequestsRegistration implements Event {
         name = new String(nameBytes);
 
 
-        //close wrapper streams
-        byteInStream.close();
-        dataIn.close();
+        wrapper.close();
     }
 
     @Override
@@ -65,8 +61,6 @@ public class ChunkServerRequestsRegistration implements Event {
         try {
             OutputWrapper wrapper = new OutputWrapper(type);
             DataOutputStream dataOut = wrapper.getDataOut();
-            //write event type to decode on arrival
-            dataOut.writeInt(type);
 
             //write IP address
             //Note: this has to be done as a thread is sending this on a random port, not the main

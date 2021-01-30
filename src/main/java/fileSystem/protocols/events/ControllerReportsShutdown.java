@@ -3,9 +3,8 @@ package fileSystem.protocols.events;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.InputWrapper;
 import fileSystem.protocols.OutputWrapper;
-import jdk.internal.util.xml.impl.Input;
 
-import java.io.*;
+import java.io.IOException;
 
 import static fileSystem.protocols.Protocol.CONTROLLER_REPORTS_SHUTDOWN;
 
@@ -45,8 +44,6 @@ public class ControllerReportsShutdown implements Event {
 
         try {
             OutputWrapper wrapper = new OutputWrapper(type);
-            //write event type to decode on arrival
-            wrapper.dataOut.writeInt(type);
 
             data = wrapper.flushAndGetBytes();
         } catch (IOException e) {

@@ -9,8 +9,8 @@ import java.io.IOException;
  *
  */
 public class OutputWrapper {
-    public DataOutputStream dataOut;
     private final ByteArrayOutputStream byteOutStream;
+    public final DataOutputStream dataOut;
 
     /**
      * Constructs an a wrapper for byteOutputStreams that handles both the initialize, and the cleanup

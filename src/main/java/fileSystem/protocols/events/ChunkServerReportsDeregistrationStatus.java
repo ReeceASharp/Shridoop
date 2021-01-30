@@ -69,9 +69,6 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
             OutputWrapper wrapper = new OutputWrapper(type);
             DataOutputStream dataOut = wrapper.getDataOut();
 
-            //write event type to decode on arrival
-            dataOut.writeInt(type);
-
             //write response status type
             dataOut.writeInt(status);
 
