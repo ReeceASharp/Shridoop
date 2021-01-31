@@ -16,7 +16,6 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
@@ -193,8 +192,11 @@ public class Controller extends Node implements Heartbeat {
         ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
 
         //create the relevant object to find using the overloaded equals operator for ChunkData
-        boolean removed = chunkServerList.remove(new ChunkData(response.getName(),
-                response.getIP(), response.getPort(), socket));
+        boolean removed;
+        synchronized (chunkServerList) {
+            removed = chunkServerList.remove(new ChunkData(response.getName(),
+                    response.getIP(), response.getPort(), socket));
+        }
 
         if (removed)
             logger.info(String.format("%s successfully showdown.", response.getName()));
@@ -249,7 +251,6 @@ public class Controller extends Node implements Heartbeat {
     public void cleanup() {
         if (isActive)
             stopChunkServers();
-
         server.cleanup();
     }
 

@@ -7,7 +7,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -43,10 +45,13 @@ public class TCPReceiver implements Runnable {
         while (!socket.isClosed()) {
             try {
                 //wrap input stream to leverage better methods
-                dataIn = new DataInputStream(socket.getInputStream());
+                InputStream ios = socket.getInputStream();
+
+                dataIn = new DataInputStream(ios);
 
                 //first read data will always be the size of the data
                 //NOTE: this line blocks
+
                 dataLength = dataIn.readInt();
 
                 //synchronize reads from a socket to make sure it's all read in chunks
@@ -59,12 +64,19 @@ public class TCPReceiver implements Runnable {
                 Event e = EventFactory.getInstance().createEvent(incomingMessage);
                 node.onEvent(e, socket);
 
-            } catch (SocketException se) {
+            } catch (EOFException eof) {
+                // standard exit method, means that the other side closed off its socket, causing this side's socket
+                // to throw this error, which follows the ControllerReportsShutdown control flow
+                logger.debug("Closing up the connection. Proper exit.");
+                cleanup();
+            }
+            catch (SocketException se) {
                 //TODO: implement logger
                 logger.error(se.getMessage() + ", " + socket);
-                break;
+                cleanup();
             } catch (IOException ioe) {
-                logger.debug("Connection closed, no longer listening to: " + socket);
+                logger.error("Connection closed, no longer listening to: " + socket);
+                ioe.printStackTrace();
                 break;
             } catch (NullPointerException ne) {
                 ne.printStackTrace();
@@ -82,7 +94,9 @@ public class TCPReceiver implements Runnable {
     }
 
     public void cleanup() {
-        logger.debug("CLEANING UP: " + socket);
+        // needs to be synchronized as cleanup is a multi-step process, if it only partially runs before something
+        // else attempts to use/modify it, the TCPReceiver is left in an unsafe state
+        synchronized (socket) {
             if (!socket.isClosed())
                 try {
                     socket.close();
@@ -91,8 +105,7 @@ public class TCPReceiver implements Runnable {
                 } catch (Exception e) {
                     logger.error(socket);
                 }
-            //The socket/connection is closed, remove the reference from the list
-            //server.removeConnection(this);
+        }
     }
 
 }
