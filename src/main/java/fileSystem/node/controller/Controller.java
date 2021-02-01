@@ -135,9 +135,9 @@ public class Controller extends Node implements Heartbeat {
                 activeChunkServers = new CountDownLatch(chunkServerList.size());
                 logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
 
+                Event event = new ControllerRequestsDeregistration();
                 for (ChunkData chunkServer : chunkServerList) {
-                    byte[] marshalledBytes = new ControllerRequestsDeregistration().getBytes();
-                    sendMessage(chunkServer.socket, marshalledBytes);
+                    sendMessage(chunkServer.socket, event);
                 }
 
             }
@@ -174,11 +174,8 @@ public class Controller extends Node implements Heartbeat {
                 break;
 
             // Client -> Controller
-            case CLIENT_REQUESTS_FILE_SAVE:
-                break;
-            case CLIENT_REQUESTS_FILE:
-                break;
-            case CLIENT_REQUESTS_FILE_DELETE:
+            case CLIENT_REQUEST:
+                clientRequest(e, socket);
                 break;
             case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
                 break;
@@ -186,6 +183,55 @@ public class Controller extends Node implements Heartbeat {
                 break;
         }
 
+    }
+
+    /**
+     * Routes the request to other functions to handle
+     *
+     * @param e      Event to be handled
+     * @param socket Connection the event came in on
+     */
+    private void clientRequest(Event e, Socket socket) {
+        ClientRequest request = (ClientRequest) e;
+
+        //Could be refactored to be multiple different event types, but that seemed like more work
+        switch (request.getRequestType()) {
+            case REQUEST_ADD:
+                fileAdd(request.getFile());
+                break;
+            case REQUEST_DELETE:
+                fileDelete(request.getFile());
+                break;
+            case REQUEST_GET:
+                fileGet(request.getFile());
+
+        }
+
+    }
+
+    /**
+     * Respond with a current list of ChunkServers containing all different chunks of the file
+     *
+     * @param file the fileName/path to get
+     */
+    private void fileGet(String file) {
+
+    }
+
+    /**
+     * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
+     *
+     * @param file the fileName/path to get
+     */
+    private void fileDelete(String file) {
+    }
+
+    /**
+     * Respond with a current list of ChunkServers to open a connection to, and send different chunks to
+     *
+     * @param file the fileName/path of the new file
+     */
+    private void fileAdd(String file) {
     }
 
     private void deregistrationResponse(Event e, Socket socket) {
@@ -204,8 +250,8 @@ public class Controller extends Node implements Heartbeat {
             logger.error(String.format("%s unsuccessfully showdown.", response.getName()));
 
         // confirm the shutdown request
-        byte[] marshalledBytes = new ControllerReportsShutdown().getBytes();
-        sendMessage(socket, marshalledBytes);
+        Event event = new ControllerReportsShutdown();
+        sendMessage(socket, event);
 
         activeChunkServers.countDown();
     }
@@ -221,10 +267,10 @@ public class Controller extends Node implements Heartbeat {
         logger.debug("Received Registration Request: " + temp);
 
         //TODO: respond
-        byte[] marshalledBytes = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS).getBytes();
+        Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
 
         logger.debug("Responding to request on socket: " + socket.getLocalSocketAddress());
-        sendMessage(socket, marshalledBytes);
+        sendMessage(socket, event);
 
     }
 

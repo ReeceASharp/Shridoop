@@ -2,30 +2,47 @@ package fileSystem.node.client;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
+import fileSystem.protocols.events.ClientRequest;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
-
-    final String[] commandList = {"connect", "add", "remove"};
+    final String[] commandList = {"add", "delete", "get", "set"};
+    //used by set, saves the hassle of putting the host:port into every request
+    String controllerHost;
+    int controllerPort;
 
     public Client() {
 
     }
 
+    public Client(String host, int port) {
+        this.controllerHost = host;
+        this.controllerPort = port;
+    }
+
+
     public static void main(String[] args) {
         //TODO: parse inputs and setup TCP connection
+
+
         int port = 0;
 
-        Client client = new Client();
+        Client client;
+
+
+        client = new Client();
 
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
@@ -44,16 +61,27 @@ public class Client extends Node {
     @Override
     public boolean handleCommand(String input) {
         boolean isValid = true;
+        String[] tokens = input.split(" ");
 
-        switch (input.split(" ")[0]) {
-            case "connect":
-                connect(input);
-                break;
+        //TODO: break up into different methods, shouldn't clean, and organize flow
+        int startIndex = controllerHost == null ? 2 : 0;
+
+        if (startIndex == 2) {
+            controllerHost = tokens[0];
+            controllerPort = Integer.parseInt(tokens[1]);
+        }
+
+        String[] standardizedString = Arrays.copyOfRange(tokens, startIndex, tokens.length + 1);
+
+        switch (tokens[startIndex]) {
             case "add":
-                sendRequest(input, "add");
+                request(standardizedString, REQUEST_ADD);
                 break;
-            case "remove":
-                sendRequest(input, "remove");
+            case "delete":
+                request(standardizedString, REQUEST_DELETE);
+                break;
+            case "get":
+                request(standardizedString, REQUEST_GET);
                 break;
             default:
                 isValid = false;
@@ -62,19 +90,16 @@ public class Client extends Node {
         return isValid;
     }
 
-    /**
-     * Attempt to connect to the controller node
-     */
-    private void connect(String input) {
+    private void request(String[] input, int requestType) {
 
-    }
-
-    private void sendRequest(String input, String requestType) {
-        switch (requestType) {
-            case "add":
-                break;
-            case "remove":
-                break;
+        try {
+            Socket socket = new Socket(controllerHost, controllerPort);
+            Event event = new ClientRequest(requestType, input[1]);
+            sendMessage(socket, event);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -82,11 +107,7 @@ public class Client extends Node {
     public void onEvent(Event e, Socket socket) {
         switch (e.getType()) {
             // Controller -> Client
-            case CONTROLLER_REPORTS_FILE_CHUNK_ADD_DESTINATION:
-                break;
-            case CONTROLLER_REPORTS_FILE_CHUNK_REQUEST_LOCATION:
-                break;
-            case CONTROLLER_REPORTS_FILE_DELETE_STATUS:
+            case CONTROLLER_REPORTS_CLIENT_REQUEST_STATUS:
                 break;
             case CONTROLLER_REPORTS_CHUNK_SERVER_METADATA:
                 break;

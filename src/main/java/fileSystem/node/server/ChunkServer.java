@@ -82,15 +82,15 @@ public class ChunkServer extends Node implements Heartbeat {
         Socket controllerSocket = new Socket(host, port);
 
         //construct the message, and get the bytes
-        byte[] marshalledBytes = new ChunkServerRequestsRegistration(node.getServerIP(),
-                node.getServerPort(), node.getName()).getBytes();
+        Event e = new ChunkServerRequestsRegistration(node.getServerIP(),
+                node.getServerPort(), node.getName());
 
         //create a listener on this new connection to listen for future requests/responses
         Thread receiver = new Thread(new TCPReceiver(node, controllerSocket, node.server));
         receiver.start();
 
         //Send the message to the Registry to attempt registration
-        node.sendMessage(controllerSocket, marshalledBytes);
+        node.sendMessage(controllerSocket, e);
     }
 
     /**
@@ -139,8 +139,8 @@ public class ChunkServer extends Node implements Heartbeat {
      * @param socket
      */
     private void respondWithStatus(Socket socket) {
-        byte[] marshalledBytes = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS).getBytes();
-        sendMessage(socket, marshalledBytes);
+        Event event = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS);
+        sendMessage(socket, event);
     }
 
     private void deregistration(Event e, Socket socket) {
@@ -151,10 +151,10 @@ public class ChunkServer extends Node implements Heartbeat {
         logger.debug("Received Deregistration request");
 
         //respond
-        byte[] marshalledBytes = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
-                getServerPort(), getName()).getBytes();
+        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
+                getServerPort(), getName());
 
-        sendMessage(socket, marshalledBytes);
+        sendMessage(socket, event);
     }
 
     private void registrationStatus(Event e) {

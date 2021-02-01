@@ -18,7 +18,7 @@ public class HeartbeatTimer {
     private final int beatsBetweenMajor;
     // beat #
     private int currentBeats;
-    private boolean isActive;
+    private final boolean isActive;
 
 
     private final Controller controller;

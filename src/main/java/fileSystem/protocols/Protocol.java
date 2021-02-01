@@ -49,11 +49,7 @@ Different Paths
         ControllerReportsFileMetadata
 
 # Client -> Controller
-    - Request to save file in system
-        ClientRequestsFileSave
-    - Request to get file
-        ClientRequestsFile
-    - Request to delete file
+    - Request to do something with a file (ADD, DELETE, GET)
         ClientRequestsFileDelete
     * ^NOTE: These might be able to be combined, we'll see what it looks like later
     - Request current node-list
@@ -81,6 +77,10 @@ public class Protocol {
     public static final int HEARTBEAT_MINOR = 3;
     public static final int HEARTBEAT_MAJOR = 4;
 
+    public static final int REQUEST_ADD = 5;
+    public static final int REQUEST_DELETE = 6;
+    public static final int REQUEST_GET = 7;
+
     // Controller -> ChunkServer
     public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 10;
     public static final int CONTROLLER_REQUESTS_DEREGISTRATION = 11;
@@ -101,16 +101,12 @@ public class Protocol {
     public static final int CHUNK_SERVER_REPORTS_REPLICATION = 31;
 
     // Controller -> Client
-    public static final int CONTROLLER_REPORTS_FILE_CHUNK_ADD_DESTINATION = 40;
-    public static final int CONTROLLER_REPORTS_FILE_CHUNK_REQUEST_LOCATION = 41;
-    public static final int CONTROLLER_REPORTS_FILE_DELETE_STATUS = 42;
-    public static final int CONTROLLER_REPORTS_CHUNK_SERVER_METADATA = 43;
-    public static final int CONTROLLER_REPORTS_FILE_METADATA = 44;
+    public static final int CONTROLLER_REPORTS_CLIENT_REQUEST_STATUS = 40;
+    public static final int CONTROLLER_REPORTS_CHUNK_SERVER_METADATA = 41;
+    public static final int CONTROLLER_REPORTS_FILE_METADATA = 42;
 
     // Client -> Controller
-    public static final int CLIENT_REQUESTS_FILE_SAVE = 50;
-    public static final int CLIENT_REQUESTS_FILE = 51;
-    public static final int CLIENT_REQUESTS_FILE_DELETE = 52;
+    public static final int CLIENT_REQUEST = 50;
     public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 53;
     public static final int CLIENT_REQUESTS_FILE_METADATA = 54;
 
