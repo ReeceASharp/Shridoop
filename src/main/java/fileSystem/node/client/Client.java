@@ -2,8 +2,7 @@ package fileSystem.node.client;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
-import fileSystem.protocols.events.ClientRequestsFileAdd;
-import fileSystem.protocols.events.ControllerReportsFileList;
+import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
@@ -13,7 +12,6 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
@@ -49,8 +47,6 @@ public class Client extends Node {
         Thread console = new Thread(new ConsoleParser(client));
         console.start();
 
-        //TODO: send connection, or use console
-
     }
 
     @Override
@@ -66,20 +62,20 @@ public class Client extends Node {
             controllerPort = Integer.parseInt(tokens[1]);
         }
 
-        String[] standardizedString = Arrays.copyOfRange(tokens, startIndex, tokens.length + 1);
+        String parameter = tokens[startIndex];
 
         switch (tokens[startIndex]) {
             case "add":
-                request(standardizedString, REQUEST_ADD);
+                request(new ClientRequestsFileAdd(parameter));
                 break;
             case "delete":
-                request(standardizedString, REQUEST_DELETE);
+                request(new ClientRequestsFileDelete(parameter));
                 break;
             case "get":
-                request(standardizedString, REQUEST_GET);
+                request(new ClientRequestsFile(parameter));
                 break;
             case "list-files":
-                request(standardizedString, REQUEST_FILE_LIST);
+                request(new ClientRequestsFileList(parameter));
                 break;
             default:
                 isValid = false;
@@ -88,8 +84,8 @@ public class Client extends Node {
         return isValid;
     }
 
-    private void request(String[] input, int requestType) {
-
+    private void request(Event event) {
+        logger.debug("Sending out Request.");
         try {
             Socket socket = new Socket(controllerHost, controllerPort);
 
@@ -97,8 +93,7 @@ public class Client extends Node {
             Thread receiver = new Thread(new TCPReceiver(this, socket, server));
             receiver.start();
 
-            //create the event and send it off to the Controller to respond
-            Event event = new ClientRequestsFileAdd(input[1]);
+            //send it off to the Controller to respond
             sendMessage(socket, event);
 
         } catch (UnknownHostException e) {
@@ -128,6 +123,7 @@ public class Client extends Node {
     }
 
     private void displayFiles(Event e) {
+        logger.debug("Received a File List response.");
         ControllerReportsFileList response = (ControllerReportsFileList) e;
 
         //TODO: get a list of files, display formatted information

@@ -5,10 +5,7 @@ import fileSystem.protocols.Event;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -65,9 +62,9 @@ public class TCPReceiver implements Runnable {
                 logger.error(se.getMessage() + ", " + socket);
                 cleanup();
             } catch (IOException ioe) {
-                logger.error("Connection closed, no longer listening to: " + socket);
+                logger.error("IOException: Connection closed, no longer listening to: " + socket);
                 ioe.printStackTrace();
-                break;
+                cleanup();
             } catch (NullPointerException ne) {
                 ne.printStackTrace();
             } catch (ClassNotFoundException e) {

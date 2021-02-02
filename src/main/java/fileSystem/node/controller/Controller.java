@@ -133,7 +133,6 @@ public class Controller extends Node implements Heartbeat {
                 }
 
             }
-            logger.debug("Waiting until all servers have exited");
             activeChunkServers.await();
             logger.debug("All servers have responded, exiting");
         } catch (InterruptedException e) {
@@ -186,11 +185,13 @@ public class Controller extends Node implements Heartbeat {
      * @param socket
      */
     private void fileList(Event e, Socket socket) {
+        logger.debug("Controller received FileList request");
         ClientRequestsFileList request = (ClientRequestsFileList) e;
 
         //TODO: logic to handle getting the files in the system, or under the optional path
+        ArrayList<String> files = new ArrayList<>();
 
-        Event response = new ControllerReportsFileList();
+        Event response = new ControllerReportsFileList(files);
         sendMessage(socket, response);
     }
 
