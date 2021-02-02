@@ -10,7 +10,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.Lock;
 
 //TODO: Potentially refactor to have a variant for the Controller to utilize a threadpool instead
 
@@ -25,7 +24,7 @@ public class TCPServer implements Runnable {
     private final Node node;
     private final int port;
     private ServerSocket serverSocket;
-    private Semaphore setupLock;
+    private final Semaphore setupLock;
 
     // Constructor, calls the main constructor with a port # of 0 will pick a random port
     public TCPServer(Node node, Semaphore setupLock) {
@@ -109,7 +108,8 @@ public class TCPServer implements Runnable {
 
     /**
      * Adds a reference to the known connections the server has
-     * @param connection  a
+     *
+     * @param connection a
      */
     public void addConnection(TCPReceiver connection) {
         currentConnections.add(connection);

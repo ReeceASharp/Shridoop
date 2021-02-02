@@ -6,7 +6,7 @@ import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
-import fileSystem.util.HeartbeatTimer;
+import fileSystem.util.HeartbeatHandler;
 import fileSystem.util.LogConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,11 +25,11 @@ public class Controller extends Node implements Heartbeat {
     //properties
     private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
     private final int port;
-    private final ArrayList<ChunkData> chunkServerList;
+    private final ArrayList<ServerData> chunkServerList;
 
     //control flow
     private boolean isActive;
-    private HeartbeatTimer timer;
+    private HeartbeatHandler timer;
 
     // Synchronization for startup and shutdown
     private CountDownLatch activeChunkServers;
@@ -72,15 +72,19 @@ public class Controller extends Node implements Heartbeat {
     }
 
     @Override
-    public void onHeartBeat() {
+    public void onHeartBeat(int type) {
         //send out requests to each of the current ChunkServers to make sure no failures have occurred
+        Event e = new ControllerRequestsFunctionalHeartbeat();
 
+        for (ServerData cd : chunkServerList) {
+            sendMessage(cd.socket, e);
+        }
     }
 
     private void configure() {
         // Note: as this class uses a reference to the controller, it must be constructed after the Controller
         // constructor to make sure it's fully setup
-        timer = new HeartbeatTimer(5, 9, this);
+        timer = new HeartbeatHandler(5, 9, this);
     }
 
     @Override
@@ -109,18 +113,6 @@ public class Controller extends Node implements Heartbeat {
         return isValid;
     }
 
-    public void sendHeartbeat(int status) {
-        switch (status) {
-            case HEARTBEAT_MINOR:
-                logger.debug("SENDING OUT MINOR HEARTBEAT");
-                break;
-            case HEARTBEAT_MAJOR:
-                logger.debug("SENDING OUT MAJOR HEARTBEAT");
-                break;
-        }
-
-    }
-
     private void stopChunkServers() {
         if (!isActive) {
             System.out.println("Cluster isn't currently active");
@@ -135,9 +127,9 @@ public class Controller extends Node implements Heartbeat {
                 activeChunkServers = new CountDownLatch(chunkServerList.size());
                 logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
 
-                for (ChunkData chunkServer : chunkServerList) {
-                    byte[] marshalledBytes = new ControllerRequestsDeregistration().getBytes();
-                    sendMessage(chunkServer.socket, marshalledBytes);
+                Event event = new ControllerRequestsDeregistration();
+                for (ServerData chunkServer : chunkServerList) {
+                    sendMessage(chunkServer.socket, event);
                 }
 
             }
@@ -149,7 +141,7 @@ public class Controller extends Node implements Heartbeat {
         } catch (NullPointerException ne) {
             synchronized (chunkServerList) {
                 logger.debug("Size: " + chunkServerList.size());
-                for (ChunkData chunkServer : chunkServerList) {
+                for (ServerData chunkServer : chunkServerList) {
                     logger.debug(chunkServer);
                 }
             }
@@ -166,25 +158,92 @@ public class Controller extends Node implements Heartbeat {
             case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
                 deregistrationResponse(e, socket);
                 break;
-            case CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA:
-                break;
             case CHUNK_SERVER_SENDS_MINOR_HEARTBEAT:
                 break;
             case CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT:
                 break;
-
             // Client -> Controller
-            case CLIENT_REQUESTS_FILE_SAVE:
-                break;
-            case CLIENT_REQUESTS_FILE:
-                break;
-            case CLIENT_REQUESTS_FILE_DELETE:
+            case CLIENT_REQUEST:
+                clientRequest(e, socket);
                 break;
             case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
                 break;
-            case CLIENT_REQUESTS_FILE_METADATA:
+        }
+
+    }
+
+    /**
+     * Routes the request to other functions to handle
+     *
+     * @param e      Event to be handled
+     * @param socket Connection the event came in on
+     */
+    private void clientRequest(Event e, Socket socket) {
+        ClientRequest request = (ClientRequest) e;
+
+
+        Event response = null;
+        //Could be refactored to be multiple different event types, but that seemed like more work
+        switch (request.getRequestType()) {
+            case REQUEST_ADD:
+                fileAdd(request.getFile(), socket);
+                break;
+            case REQUEST_DELETE:
+                fileDelete(request.getFile(), socket);
+                break;
+            case REQUEST_GET:
+                fileGet(request.getFile(), socket);
+                break;
+            case REQUEST_FILE_LIST:
+                fileList(request.getFile(), socket);
                 break;
         }
+
+    }
+
+    /**
+     * Packages and sends off the current file information the Controller is keeping to the client
+     * @param pathToList  Optional parameter, if specified, will return all files under that path.
+     *                    If not specified, then all files are returned
+     * @param socket
+     */
+    private void fileList(String pathToList, Socket socket) {
+
+
+        Event e = new ControllerReportsFileMetadata();
+
+        sendMessage(socket, e);
+    }
+
+    /**
+     * Respond with a current list of ChunkServers containing all different chunks of the file
+     *
+     * @param file the fileName/path to get
+     * @param socket
+     */
+    private void fileGet(String file, Socket socket) {
+        // Look at current list of files in system, and respond with the list of servers associated with the requested
+        // file, or respond with a negative status in the case of an absence of that file
+
+    }
+
+    /**
+     * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
+     *
+     * @param file the fileName/path to get
+     * @param socket
+     */
+    private void fileDelete(String file, Socket socket) {
+        //See if file exists in the system, and send out requests to delete it, if it exists
+    }
+
+    /**
+     * Respond with a current list of ChunkServers to open a connection to, and send different chunks to
+     *
+     * @param file the fileName/path of the new file
+     * @param socket
+     */
+    private void fileAdd(String file, Socket socket) {
 
     }
 
@@ -194,7 +253,7 @@ public class Controller extends Node implements Heartbeat {
         //create the relevant object to find using the overloaded equals operator for ChunkData
         boolean removed;
         synchronized (chunkServerList) {
-            removed = chunkServerList.remove(new ChunkData(response.getName(),
+            removed = chunkServerList.remove(new ServerData(response.getName(),
                     response.getIP(), response.getPort(), socket));
         }
 
@@ -204,15 +263,15 @@ public class Controller extends Node implements Heartbeat {
             logger.error(String.format("%s unsuccessfully showdown.", response.getName()));
 
         // confirm the shutdown request
-        byte[] marshalledBytes = new ControllerReportsShutdown().getBytes();
-        sendMessage(socket, marshalledBytes);
+        Event event = new ControllerReportsShutdown();
+        sendMessage(socket, event);
 
         activeChunkServers.countDown();
     }
 
     private void chunkServerRegistration(Event e, Socket socket) {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
-        ChunkData temp = new ChunkData(request.getName(), request.getIP(), request.getPort(), socket);
+        ServerData temp = new ServerData(request.getName(), request.getIP(), request.getPort(), socket);
 
         synchronized (chunkServerList) {
             chunkServerList.add(temp);
@@ -221,10 +280,10 @@ public class Controller extends Node implements Heartbeat {
         logger.debug("Received Registration Request: " + temp);
 
         //TODO: respond
-        byte[] marshalledBytes = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS).getBytes();
+        Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
 
         logger.debug("Responding to request on socket: " + socket.getLocalSocketAddress());
-        sendMessage(socket, marshalledBytes);
+        sendMessage(socket, event);
 
     }
 
@@ -260,7 +319,7 @@ public class Controller extends Node implements Heartbeat {
     public void showConfig() {
         System.out.println("**** NODES ****");
         System.out.println("Nodes: " + chunkServerList.size());
-        for (ChunkData server : chunkServerList)
+        for (ServerData server : chunkServerList)
             System.out.println(server);
         System.out.println(" ************* ");
     }

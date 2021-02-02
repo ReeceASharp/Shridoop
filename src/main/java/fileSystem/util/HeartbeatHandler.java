@@ -1,6 +1,9 @@
 package fileSystem.util;
 
+import fileSystem.node.Heartbeat;
+import fileSystem.node.Node;
 import fileSystem.node.controller.Controller;
+import fileSystem.node.server.ChunkServer;
 import fileSystem.protocols.Protocol;
 
 import java.util.Timer;
@@ -9,7 +12,7 @@ import java.util.TimerTask;
 /**
  * Used by the
  */
-public class HeartbeatTimer {
+public class HeartbeatHandler {
     private Timer beatTimer;
 
     // time, in seconds, between beats
@@ -18,15 +21,15 @@ public class HeartbeatTimer {
     private final int beatsBetweenMajor;
     // beat #
     private int currentBeats;
-    private boolean isActive;
+    private final boolean isActive;
 
 
-    private final Controller controller;
+    private final Node node;
 
-    public HeartbeatTimer(int heartbeatDelay, int beatsBetweenMajor, Controller controller) {
+    public HeartbeatHandler(int heartbeatDelay, int beatsBetweenMajor, Node node) {
         this.heartbeatDelay = heartbeatDelay;
         this.beatsBetweenMajor = beatsBetweenMajor;
-        this.controller = controller;
+        this.node = node;
 
         this.isActive = false;
         currentBeats = 0;
@@ -45,18 +48,24 @@ public class HeartbeatTimer {
             beatTimer.cancel();
     }
 
-
     private class beatEvent extends TimerTask {
 
         @Override
         public void run() {
             //get the current beat type and pass it off to the Controller to handle
-            int status = currentBeats == beatsBetweenMajor ? Protocol.HEARTBEAT_MAJOR : Protocol.HEARTBEAT_MINOR;
-            controller.sendHeartbeat(status);
+            int type = currentBeats == beatsBetweenMajor ? Protocol.HEARTBEAT_MAJOR : Protocol.HEARTBEAT_MINOR;
+
+            if (node instanceof Controller) {
+                ((Controller) node).onHeartBeat(type);
+            }
+            if (node instanceof ChunkServer) {
+                ((ChunkServer) node).onHeartBeat(type);
+            }
+
 
             //update beatCount
             currentBeats++;
-            if (status == Protocol.HEARTBEAT_MAJOR)
+            if (type == Protocol.HEARTBEAT_MAJOR)
                 currentBeats = 0;
         }
     }

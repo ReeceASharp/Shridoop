@@ -8,9 +8,7 @@ do
   #ignore comments in file
   [[ "$CHUNK" =~ ^#.*$ ]] && continue
 
-  # output data for
-  echo GO: "$1", CONNECTION: "${CHUNK[0]}", NAME: "${CHUNK[1]}"
-
   #start up a server
-  /git-bash.exe -li -c "java -cp target/Distributed_File_System-1.0.jar fileSystem.node.server.ChunkServer ${CHUNK[0]} $1 ${CHUNK[1]}" &
+  /git-bash.exe -li -c "java -cp target/Distributed_File_System-1.0.jar fileSystem.node.server.ChunkServer ${CHUNK[0]} $1 ${CHUNK[1]} ${CHUNK[2]}" &
 done < ./chunkServers
+

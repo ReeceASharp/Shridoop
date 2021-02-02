@@ -2,14 +2,13 @@ package fileSystem.transport;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
-import fileSystem.protocols.EventFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -38,39 +37,30 @@ public class TCPReceiver implements Runnable {
         server.addConnection(this);
 
         //temporary values for holding message data
-        int dataLength;
-        byte[] incomingMessage;
-        DataInputStream dataIn = null;
+        Event event = null;
+        ObjectInputStream dataIn = null;
 
         while (!socket.isClosed()) {
             try {
                 //wrap input stream to leverage better methods
                 InputStream ios = socket.getInputStream();
 
-                dataIn = new DataInputStream(ios);
-
-                //first read data will always be the size of the data
-                //NOTE: this line blocks
-
-                dataLength = dataIn.readInt();
+                dataIn = new ObjectInputStream(ios);
 
                 //synchronize reads from a socket to make sure it's all read in chunks
                 synchronized (socket) {
-                    incomingMessage = new byte[dataLength];
-                    dataIn.readFully(incomingMessage, 0, dataLength);
+                    event = (Event) dataIn.readObject();
                 }
-
                 //convert to appropriate event type, and pass it along to the receiving node to handle
-                Event e = EventFactory.getInstance().createEvent(incomingMessage);
-                node.onEvent(e, socket);
+                //Event e = EventFactory.getInstance().createEvent(incomingMessage);
+                node.onEvent(event, socket);
 
             } catch (EOFException eof) {
                 // standard exit method, means that the other side closed off its socket, causing this side's socket
                 // to throw this error, which follows the ControllerReportsShutdown control flow
                 logger.debug("Closing up the connection. Proper exit.");
                 cleanup();
-            }
-            catch (SocketException se) {
+            } catch (SocketException se) {
                 //TODO: implement logger
                 logger.error(se.getMessage() + ", " + socket);
                 cleanup();
@@ -80,6 +70,8 @@ public class TCPReceiver implements Runnable {
                 break;
             } catch (NullPointerException ne) {
                 ne.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
             }
         }
 

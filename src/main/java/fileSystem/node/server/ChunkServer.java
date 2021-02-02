@@ -25,16 +25,20 @@ public class ChunkServer extends Node implements Heartbeat {
     final String[] commandList = {"list-files", "config"};
     private final int controllerPort;
     private final String name;
+    private Socket controllerSocket;
+    private final FileHandler fileHandler;
 
-    public ChunkServer(int portConnect, String name) {
+    public ChunkServer(int portConnect, String name, String homePath) {
         this.controllerPort = portConnect;
         this.name = name;
+        this.fileHandler =  new FileHandler(homePath);
     }
 
     public static void main(String[] args) throws UnknownHostException {
         final int portListen = Integer.parseInt(args[0]);
         final int portConnect = Integer.parseInt(args[1]);
         final String name = args[2];
+        final String homePath = args[3];
 
         logger.debug(String.format("PortListen: %d, PortConnect: %d, Name: %s", portListen, portConnect, name));
 
@@ -47,7 +51,7 @@ public class ChunkServer extends Node implements Heartbeat {
         logger.debug(String.format("IP: %s, Host: %s%n", ip.getHostAddress(), host));
 
         //get an object reference to be able to call functions and organize control flow
-        ChunkServer server = new ChunkServer(portConnect, name);
+        ChunkServer server = new ChunkServer(portConnect, name, homePath);
 
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
@@ -63,6 +67,12 @@ public class ChunkServer extends Node implements Heartbeat {
             setupLock.acquire();
             sendRegistration(server, host, portConnect);
         } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            Thread.sleep(50 * 1000);
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -82,15 +92,15 @@ public class ChunkServer extends Node implements Heartbeat {
         Socket controllerSocket = new Socket(host, port);
 
         //construct the message, and get the bytes
-        byte[] marshalledBytes = new ChunkServerRequestsRegistration(node.getServerIP(),
-                node.getServerPort(), node.getName()).getBytes();
+        Event e = new ChunkServerRequestsRegistration(node.getServerIP(),
+                node.getServerPort(), node.getName());
 
         //create a listener on this new connection to listen for future requests/responses
         Thread receiver = new Thread(new TCPReceiver(node, controllerSocket, node.server));
         receiver.start();
 
         //Send the message to the Registry to attempt registration
-        node.sendMessage(controllerSocket, marshalledBytes);
+        node.sendMessage(controllerSocket, e);
     }
 
     /**
@@ -116,8 +126,6 @@ public class ChunkServer extends Node implements Heartbeat {
             case CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT:
                 respondWithStatus(socket);
                 break;
-            case CONTROLLER_REQUESTS_FILE_METADATA:
-                break;
 
             // ChunkServer -> ChunkServer
             case CHUNK_SERVER_REQUESTS_REPLICATION:
@@ -127,8 +135,23 @@ public class ChunkServer extends Node implements Heartbeat {
 
             // Client -> ChunkServer
             case CLIENT_REQUESTS_FILE_CHUNK:
+                sendFileChunk(e, socket);
                 break;
         }
+    }
+
+    /**
+     * Respond to the fileRequest from the client
+     * @param e
+     * @param socket
+     */
+    private void sendFileChunk(Event e, Socket socket) {
+        ClientRequestsFileChunk request = (ClientRequestsFileChunk) e;
+
+        byte[] fileData = fileHandler.getFileData(request.getFile());
+        Event event = new ChunkServerSendsFileChunk(fileData);
+
+        sendMessage(socket, event);
     }
 
     /**
@@ -139,8 +162,8 @@ public class ChunkServer extends Node implements Heartbeat {
      * @param socket
      */
     private void respondWithStatus(Socket socket) {
-        byte[] marshalledBytes = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS).getBytes();
-        sendMessage(socket, marshalledBytes);
+        Event event = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS);
+        sendMessage(socket, event);
     }
 
     private void deregistration(Event e, Socket socket) {
@@ -151,10 +174,10 @@ public class ChunkServer extends Node implements Heartbeat {
         logger.debug("Received Deregistration request");
 
         //respond
-        byte[] marshalledBytes = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
-                getServerPort(), getName()).getBytes();
+        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
+                getServerPort(), getName());
 
-        sendMessage(socket, marshalledBytes);
+        sendMessage(socket, event);
     }
 
     private void registrationStatus(Event e) {
@@ -222,7 +245,23 @@ public class ChunkServer extends Node implements Heartbeat {
     }
 
     @Override
-    public void onHeartBeat() {
+    public void onHeartBeat(int type) {
         //send out a current summary of changes to the ChunkServer since the last heartbeat
+
+        Event event = type == HEARTBEAT_MAJOR ? constructMajorHeartbeat() : constructMinorHeartbeat();
+
+        sendMessage(controllerSocket, event);
+    }
+
+    public void setControllerSocket(Socket controllerSocket) {
+        this.controllerSocket = controllerSocket;
+    }
+
+    private Event constructMajorHeartbeat() {
+        return null;
+    }
+
+    private Event constructMinorHeartbeat() {
+        return null;
     }
 }

@@ -2,13 +2,13 @@ package fileSystem.node.controller;
 
 import java.net.Socket;
 
-public class ChunkData {
+public class ServerData {
     public final String name;
     public final String address;
     public final int port;
     public final Socket socket;
 
-    public ChunkData(String name, String address, int port, Socket socket) {
+    public ServerData(String name, String address, int port, Socket socket) {
         this.name = name;
         this.address = address;
         this.port = port;
@@ -26,7 +26,7 @@ public class ChunkData {
     @Override
     public boolean equals(Object obj) {
         try {
-            ChunkData other = (ChunkData) obj;
+            ServerData other = (ServerData) obj;
 
             return other.name.equals(this.name) &&
                     other.address.equals(this.address) &&

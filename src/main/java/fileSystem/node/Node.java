@@ -42,11 +42,11 @@ public abstract class Node {
     /**
      * send the bytes through a specific connection via thread
      *
-     * @param socket          The pipe through which data is being sent through
-     * @param marshalledBytes The data being sent, the first 4 bytes are expected to be stored as the type
+     * @param socket The pipe through which data is being sent through
+     * @param event  The message being sent (Uses objects)
      */
-    protected void sendMessage(Socket socket, byte[] marshalledBytes) {
-        new Thread(new TCPSender(socket, marshalledBytes)).start();
+    protected void sendMessage(Socket socket, Event event) {
+        new Thread(new TCPSender(socket, event)).start();
     }
 
     /**
