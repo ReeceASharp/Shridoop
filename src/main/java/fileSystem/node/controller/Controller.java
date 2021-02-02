@@ -191,7 +191,7 @@ public class Controller extends Node implements Heartbeat {
         //TODO: logic to handle getting the files in the system, or under the optional path
         ArrayList<String> files = new ArrayList<>();
 
-        Event response = new ControllerReportsFileList(files);
+        Event response = new ControllerReportsFileList(RESPONSE_SUCCESS, files);
         sendMessage(socket, response);
     }
 
@@ -207,7 +207,7 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        Event response = new ControllerReportsServerContactList(RESPONSE_FAILURE, null);
+        Event response = new ControllerReportsChunkAddList(RESPONSE_FAILURE, null);
         sendMessage(socket, response);
     }
 
@@ -222,7 +222,7 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        Event response = new ControllerReportsServerContactList(RESPONSE_FAILURE, null);
+        Event response = new ControllerReportsChunkAddList(RESPONSE_FAILURE, null);
         sendMessage(socket, response);
     }
 
@@ -237,7 +237,7 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: logic to get a list of servers to pass back to the client for it to send the data to directly
 
-        Event response = new ControllerReportsServerContactList(RESPONSE_FAILURE, null);
+        Event response = new ControllerReportsChunkAddList(RESPONSE_FAILURE, null);
         sendMessage(socket, response);
     }
 

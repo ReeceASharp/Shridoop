@@ -10,13 +10,13 @@ import java.util.ArrayList;
  * An event that is used in the case of either ADD, or GET, as the client has to contact these nodes directly
  * in order to not bottleneck through the Controller
  */
-public class ControllerReportsServerContactList implements Event {
-    private static final int type = Protocol.CONTROLLER_REPORTS_SERVER_CONTACT_LIST;
+public class ControllerReportsChunkAddList implements Event {
+    private static final int type = Protocol.CONTROLLER_REPORTS_CHUNK_ADD_LIST;
 
     private final int status;
     private final ArrayList<ServerData> serversToContact;
 
-    public ControllerReportsServerContactList(int status, ArrayList<ServerData> serversToContact) {
+    public ControllerReportsChunkAddList(int status, ArrayList<ServerData> serversToContact) {
         this.status = status;
         this.serversToContact = serversToContact;
     }

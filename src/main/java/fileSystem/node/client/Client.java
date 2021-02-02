@@ -19,13 +19,16 @@ import static fileSystem.protocols.Protocol.*;
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
     final String[] commandList = {"add", "delete", "get", "list-files"};
-    //used by set, saves the hassle of putting the host:port into every request
-    String controllerHost;
-    int controllerPort;
+    private String controllerHost;
+    private int controllerPort;
+    private Socket controllerSocket;
+
+    private final Semaphore commandLock;
 
     public Client(String host, int port) {
         this.controllerHost = host;
         this.controllerPort = port;
+        this.commandLock = new Semaphore(1);
     }
 
 
@@ -38,9 +41,7 @@ public class Client extends Node {
         Client client = new Client(host, port);
 
         //create a server thread to listen to incoming connections
-        Semaphore setupLock = new Semaphore(1);
-        setupLock.tryAcquire();
-        Thread tcpServer = new Thread(new TCPServer(client, 0, setupLock));
+        Thread tcpServer = new Thread(new TCPServer(client, 0, null));
         tcpServer.start();
 
         //Console parser
@@ -54,28 +55,18 @@ public class Client extends Node {
         boolean isValid = true;
         String[] tokens = input.split(" ");
 
-        //TODO: break up into different methods, shouldn't clean, and organize flow
-        int startIndex = controllerHost == null ? 2 : 0;
-
-        if (startIndex == 2) {
-            controllerHost = tokens[0];
-            controllerPort = Integer.parseInt(tokens[1]);
-        }
-
-        String parameter = tokens[startIndex];
-
-        switch (tokens[startIndex]) {
+        switch (tokens[0]) {
             case "add":
-                request(new ClientRequestsFileAdd(parameter));
+                request(new ClientRequestsFileAdd(tokens[1]));
                 break;
             case "delete":
-                request(new ClientRequestsFileDelete(parameter));
+                request(new ClientRequestsFileDelete(tokens[1]));
                 break;
             case "get":
-                request(new ClientRequestsFile(parameter));
+                request(new ClientRequestsFile(tokens[1]));
                 break;
             case "list-files":
-                request(new ClientRequestsFileList(parameter));
+                request(new ClientRequestsFileList(tokens[0]));
                 break;
             default:
                 isValid = false;
@@ -87,18 +78,30 @@ public class Client extends Node {
     private void request(Event event) {
         logger.debug("Sending out Request.");
         try {
-            Socket socket = new Socket(controllerHost, controllerPort);
+            //grab a
+            commandLock.acquire();
 
-            //create a listener on this new connection to listen for future responses
-            Thread receiver = new Thread(new TCPReceiver(this, socket, server));
-            receiver.start();
+            if (controllerSocket == null) {
+                controllerSocket = new Socket(controllerHost, controllerPort);
+
+                //create a listener on this new connection to listen for future responses
+
+                Thread receiver = new Thread(new TCPReceiver(this, controllerSocket, server));
+                receiver.start();
+            }
 
             //send it off to the Controller to respond
-            sendMessage(socket, event);
+            sendMessage(controllerSocket, event);
+
+            //block on message send, release on successful message response
+            //Note: this could have problems if the response never comes for some reason
+            commandLock.acquire();
 
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -107,12 +110,17 @@ public class Client extends Node {
     public void onEvent(Event e, Socket socket) {
         switch (e.getType()) {
             // Controller -> Client
-            case CONTROLLER_REPORTS_CLIENT_REQUEST_STATUS:
-                break;
-            case CONTROLLER_REPORTS_CHUNK_SERVER_METADATA:
-                break;
             case CONTROLLER_REPORTS_FILE_LIST:
                 displayFiles(e);
+                break;
+            case CONTROLLER_REPORTS_CHUNK_GET_LIST:
+                getFileFromServers(e);
+                break;
+            case CONTROLLER_REPORTS_CHUNK_ADD_LIST:
+                addFileToServers(e);
+                break;
+            case CONTROLLER_REPORTS_FILE_DELETE_STATUS:
+                deleteStatus(e);
                 break;
 
             // ChunkServer -> Client
@@ -122,13 +130,57 @@ public class Client extends Node {
 
     }
 
+    /**
+     * Displays whether the delete request went through
+     * @param e The event to be converted to ControllerReportsFileDeleteStatus
+     */
+    private void deleteStatus(Event e) {
+        ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
+
+        switch(response.getStatus()) {
+            case RESPONSE_SUCCESS:
+                break;
+            case RESPONSE_FAILURE:
+                break;
+
+        }
+
+        commandLock.release();
+    }
+
+    private void addFileToServers(Event e) {
+        ControllerReportsChunkAddList response = (ControllerReportsChunkAddList) e;
+
+        //TODO: handle logic of adding the file to the servers
+
+        commandLock.release();
+    }
+
+    private void getFileFromServers(Event e) {
+        ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
+
+        //TODO: handle logic of querying the ChunkServers
+
+        commandLock.release();
+    }
+
     private void displayFiles(Event e) {
         logger.debug("Received a File List response.");
         ControllerReportsFileList response = (ControllerReportsFileList) e;
 
         //TODO: get a list of files, display formatted information
-
-
+        if (response.getStatus() == RESPONSE_SUCCESS) {
+            System.out.println("**** Files **** ");
+            for (String file : response.getFiles()) {
+                System.out.println(file);
+            }
+            System.out.println("  ************  ");
+        }
+        else if (response.getStatus() == RESPONSE_FAILURE) {
+            System.out.println("Failure to handle list query.");
+        }
+        //Now that command passed, release
+        commandLock.release();
     }
 
     @Override
@@ -138,13 +190,14 @@ public class Client extends Node {
 
     @Override
     protected String getHelp() {
-        return "Client: This is the interface that is used to connect to a currently running Controller.";
+        return "Client: This is the interface that is used to connect to a currently running Controller. Using one" +
+                "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
     }
 
     @Override
     protected String getIntro() {
-        return "Distributed System Client: Connect to a known cluster with the 'connect [IP:PORT]' command. " +
-                "More information available via 'help'.";
+        return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from" +
+                "the cluster. More information available via 'help'.";
     }
 
     @Override
