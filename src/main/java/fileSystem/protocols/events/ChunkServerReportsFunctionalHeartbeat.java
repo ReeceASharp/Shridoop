@@ -18,4 +18,7 @@ public class ChunkServerReportsFunctionalHeartbeat implements Event {
         return type;
     }
 
+    public int getStatus() {
+        return status;
+    }
 }

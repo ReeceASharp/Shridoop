@@ -102,11 +102,17 @@ public class Protocol {
     // Controller -> Client
     public static final int CONTROLLER_REPORTS_CLIENT_REQUEST_STATUS = 40;
     public static final int CONTROLLER_REPORTS_CHUNK_SERVER_METADATA = 41;
-    public static final int CONTROLLER_REPORTS_FILE_METADATA = 42;
+    public static final int CONTROLLER_REPORTS_FILE_LIST = 42;
+    public static final int CONTROLLER_REPORTS_SERVER_CONTACT_LIST = 43;
+    public static final int CONTROLLER_REPORTS_FILE_DELETE_STATUS = 44;
+
 
     // Client -> Controller
-    public static final int CLIENT_REQUEST = 50;
-    public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 51;
+    public static final int CLIENT_REQUESTS_FILE_ADD = 50;
+    public static final int CLIENT_REQUESTS_FILE_DELETE = 51;
+    public static final int CLIENT_REQUESTS_FILE = 52;
+    public static final int CLIENT_REQUESTS_FILE_LIST = 53;
+    public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 54;
 
     // Client -> ChunkServer
     public static final int CLIENT_REQUESTS_FILE_CHUNK = 60;

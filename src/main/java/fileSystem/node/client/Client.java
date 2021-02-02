@@ -2,8 +2,8 @@ package fileSystem.node.client;
 
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
-import fileSystem.protocols.events.ClientRequest;
-import fileSystem.protocols.events.ControllerReportsFileMetadata;
+import fileSystem.protocols.events.ClientRequestsFileAdd;
+import fileSystem.protocols.events.ControllerReportsFileList;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
@@ -98,7 +98,7 @@ public class Client extends Node {
             receiver.start();
 
             //create the event and send it off to the Controller to respond
-            Event event = new ClientRequest(requestType, input[1]);
+            Event event = new ClientRequestsFileAdd(input[1]);
             sendMessage(socket, event);
 
         } catch (UnknownHostException e) {
@@ -116,7 +116,7 @@ public class Client extends Node {
                 break;
             case CONTROLLER_REPORTS_CHUNK_SERVER_METADATA:
                 break;
-            case CONTROLLER_REPORTS_FILE_METADATA:
+            case CONTROLLER_REPORTS_FILE_LIST:
                 displayFiles(e);
                 break;
 
@@ -128,9 +128,10 @@ public class Client extends Node {
     }
 
     private void displayFiles(Event e) {
-        ControllerReportsFileMetadata response = (ControllerReportsFileMetadata) e;
+        ControllerReportsFileList response = (ControllerReportsFileList) e;
 
         //TODO: get a list of files, display formatted information
+
 
     }
 

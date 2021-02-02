@@ -163,8 +163,16 @@ public class Controller extends Node implements Heartbeat {
             case CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT:
                 break;
             // Client -> Controller
-            case CLIENT_REQUEST:
-                clientRequest(e, socket);
+            case CLIENT_REQUESTS_FILE_ADD:
+                fileAdd(e, socket);
+            case CLIENT_REQUESTS_FILE_DELETE:
+                fileDelete(e, socket);
+                break;
+            case CLIENT_REQUESTS_FILE:
+                fileGet(e, socket);
+                break;
+            case CLIENT_REQUESTS_FILE_LIST:
+                fileList(e, socket);
                 break;
             case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
                 break;
@@ -173,78 +181,63 @@ public class Controller extends Node implements Heartbeat {
     }
 
     /**
-     * Routes the request to other functions to handle
-     *
-     * @param e      Event to be handled
-     * @param socket Connection the event came in on
-     */
-    private void clientRequest(Event e, Socket socket) {
-        ClientRequest request = (ClientRequest) e;
-
-
-        Event response = null;
-        //Could be refactored to be multiple different event types, but that seemed like more work
-        switch (request.getRequestType()) {
-            case REQUEST_ADD:
-                fileAdd(request.getFile(), socket);
-                break;
-            case REQUEST_DELETE:
-                fileDelete(request.getFile(), socket);
-                break;
-            case REQUEST_GET:
-                fileGet(request.getFile(), socket);
-                break;
-            case REQUEST_FILE_LIST:
-                fileList(request.getFile(), socket);
-                break;
-        }
-
-    }
-
-    /**
      * Packages and sends off the current file information the Controller is keeping to the client
-     * @param pathToList  Optional parameter, if specified, will return all files under that path.
-     *                    If not specified, then all files are returned
+     * @param e  Event that contains a ClientRequestsFileList, contains an optional path parameter to search through
      * @param socket
      */
-    private void fileList(String pathToList, Socket socket) {
+    private void fileList(Event e, Socket socket) {
+        ClientRequestsFileList request = (ClientRequestsFileList) e;
 
+        //TODO: logic to handle getting the files in the system, or under the optional path
 
-        Event e = new ControllerReportsFileMetadata();
-
-        sendMessage(socket, e);
+        Event response = new ControllerReportsFileList();
+        sendMessage(socket, response);
     }
 
     /**
      * Respond with a current list of ChunkServers containing all different chunks of the file
      *
-     * @param file the fileName/path to get
+     * @param e  The event containing the file the client wants
      * @param socket
      */
-    private void fileGet(String file, Socket socket) {
+    private void fileGet(Event e, Socket socket) {
         // Look at current list of files in system, and respond with the list of servers associated with the requested
         // file, or respond with a negative status in the case of an absence of that file
 
+        //TODO: Logic to check for file existence + get servers hosting chunks of said file
+
+        Event response = new ControllerReportsServerContactList(RESPONSE_FAILURE, null);
+        sendMessage(socket, response);
     }
 
     /**
      * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
      *
-     * @param file the fileName/path to get
+     * @param e the event containing the file that the client wants deleted
      * @param socket
      */
-    private void fileDelete(String file, Socket socket) {
+    private void fileDelete(Event e, Socket socket) {
         //See if file exists in the system, and send out requests to delete it, if it exists
+
+        //TODO: Logic to check for file existence + get servers hosting chunks of said file
+
+        Event response = new ControllerReportsServerContactList(RESPONSE_FAILURE, null);
+        sendMessage(socket, response);
     }
 
     /**
      * Respond with a current list of ChunkServers to open a connection to, and send different chunks to
      *
-     * @param file the fileName/path of the new file
+     * @param e the event that contains the file being requested to be added
      * @param socket
      */
-    private void fileAdd(String file, Socket socket) {
+    private void fileAdd(Event e, Socket socket) {
+        ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
 
+        //TODO: logic to get a list of servers to pass back to the client for it to send the data to directly
+
+        Event response = new ControllerReportsServerContactList(RESPONSE_FAILURE, null);
+        sendMessage(socket, response);
     }
 
     private void deregistrationResponse(Event e, Socket socket) {
