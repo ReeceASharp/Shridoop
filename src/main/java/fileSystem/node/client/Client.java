@@ -3,6 +3,8 @@ package fileSystem.node.client;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.events.ClientRequest;
+import fileSystem.protocols.events.ControllerReportsFileMetadata;
+import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 import org.apache.logging.log4j.LogManager;
@@ -18,14 +20,10 @@ import static fileSystem.protocols.Protocol.*;
 
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
-    final String[] commandList = {"add", "delete", "get", "set"};
+    final String[] commandList = {"add", "delete", "get", "list-files"};
     //used by set, saves the hassle of putting the host:port into every request
     String controllerHost;
     int controllerPort;
-
-    public Client() {
-
-    }
 
     public Client(String host, int port) {
         this.controllerHost = host;
@@ -36,18 +34,15 @@ public class Client extends Node {
     public static void main(String[] args) {
         //TODO: parse inputs and setup TCP connection
 
+        String host = args[0];
+        int port = Integer.parseInt(args[1]);
 
-        int port = 0;
-
-        Client client;
-
-
-        client = new Client();
+        Client client = new Client(host, port);
 
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
         setupLock.tryAcquire();
-        Thread tcpServer = new Thread(new TCPServer(client, port, setupLock));
+        Thread tcpServer = new Thread(new TCPServer(client, 0, setupLock));
         tcpServer.start();
 
         //Console parser
@@ -83,6 +78,9 @@ public class Client extends Node {
             case "get":
                 request(standardizedString, REQUEST_GET);
                 break;
+            case "list-files":
+                request(standardizedString, REQUEST_FILE_LIST);
+                break;
             default:
                 isValid = false;
         }
@@ -94,8 +92,15 @@ public class Client extends Node {
 
         try {
             Socket socket = new Socket(controllerHost, controllerPort);
+
+            //create a listener on this new connection to listen for future responses
+            Thread receiver = new Thread(new TCPReceiver(this, socket, server));
+            receiver.start();
+
+            //create the event and send it off to the Controller to respond
             Event event = new ClientRequest(requestType, input[1]);
             sendMessage(socket, event);
+
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -112,12 +117,20 @@ public class Client extends Node {
             case CONTROLLER_REPORTS_CHUNK_SERVER_METADATA:
                 break;
             case CONTROLLER_REPORTS_FILE_METADATA:
+                displayFiles(e);
                 break;
 
             // ChunkServer -> Client
             case CHUNK_SERVER_SENDS_FILE_CHUNK:
                 break;
         }
+
+    }
+
+    private void displayFiles(Event e) {
+        ControllerReportsFileMetadata response = (ControllerReportsFileMetadata) e;
+
+        //TODO: get a list of files, display formatted information
 
     }
 

@@ -1,8 +1,9 @@
 package fileSystem.protocols.events;
 
-import fileSystem.node.controller.ChunkData;
+import fileSystem.node.controller.ServerData;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.Protocol;
+import org.apache.logging.log4j.core.jmx.Server;
 
 import java.util.ArrayList;
 
@@ -14,12 +15,12 @@ public class ControllerReportsClientRequestStatus implements Event {
 
     private final int requestType;
     private final int status;
-    //private final ArrayList<ChunkData> serversToContact;
+    private final ArrayList<ServerData> serversToContact;
 
-    public ControllerReportsClientRequestStatus(int requestType, int status, ArrayList<ChunkData> serversToContact) {
+    public ControllerReportsClientRequestStatus(int requestType, int status, ArrayList<ServerData> serversToContact) {
         this.requestType = requestType;
         this.status = status;
-        //this.serversToContact = serversToContact;
+        this.serversToContact = serversToContact;
     }
 
     @Override

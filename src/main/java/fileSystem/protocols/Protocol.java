@@ -80,21 +80,20 @@ public class Protocol {
     public static final int REQUEST_ADD = 5;
     public static final int REQUEST_DELETE = 6;
     public static final int REQUEST_GET = 7;
+    public static final int REQUEST_FILE_LIST = 8;
 
     // Controller -> ChunkServer
     public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 10;
     public static final int CONTROLLER_REQUESTS_DEREGISTRATION = 11;
     public static final int CONTROLLER_REPORTS_SHUTDOWN = 12;
-    public static final int CONTROLLER_REQUESTS_FILE_METADATA = 13;
-    public static final int CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT = 14;
+    public static final int CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT = 13;
 
     // ChunkServer -> Controller
     public static final int CHUNK_SERVER_REQUESTS_REGISTRATION = 20;
     public static final int CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS = 21;
     public static final int CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT = 22;
     public static final int CHUNK_SERVER_SENDS_MINOR_HEARTBEAT = 23;
-    public static final int CHUNK_SERVER_REPORTS_FILE_CHUNK_METADATA = 24;
-    public static final int CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT = 25;
+    public static final int CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT = 24;
 
     // ChunkServer -> ChunkServer
     public static final int CHUNK_SERVER_REQUESTS_REPLICATION = 30;
@@ -107,11 +106,11 @@ public class Protocol {
 
     // Client -> Controller
     public static final int CLIENT_REQUEST = 50;
-    public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 53;
-    public static final int CLIENT_REQUESTS_FILE_METADATA = 54;
+    public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 51;
 
     // Client -> ChunkServer
     public static final int CLIENT_REQUESTS_FILE_CHUNK = 60;
+    public static final int CLIENT_SENDS_FILE_CHUNK = 61;
 
     // ChunkServer -> Client
     public static final int CHUNK_SERVER_SENDS_FILE_CHUNK = 70;
