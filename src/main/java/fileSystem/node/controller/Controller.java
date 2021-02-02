@@ -207,7 +207,7 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        Event response = new ControllerReportsChunkAddList(RESPONSE_FAILURE, null);
+        Event response = new ControllerReportsChunkGetList(RESPONSE_FAILURE);
         sendMessage(socket, response);
     }
 
@@ -222,7 +222,7 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        Event response = new ControllerReportsChunkAddList(RESPONSE_FAILURE, null);
+        Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
         sendMessage(socket, response);
     }
 
