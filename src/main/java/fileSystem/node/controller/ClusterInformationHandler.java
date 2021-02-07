@@ -1,7 +1,10 @@
 package fileSystem.node.controller;
 
 import java.net.Socket;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * This object contains all useful information about the cluster. It is updated by the heartbeats send to and from
@@ -31,6 +34,8 @@ public class ClusterInformationHandler {
     private final FileMetadataHandler fileHandler;
     private final ServerMetadataHandler serverHandler;
 
+    public static final int CHUNK_SIZE = 65536; //2^16, 64k
+
 
     public ClusterInformationHandler() {
         fileHandler = new FileMetadataHandler();
@@ -47,16 +52,32 @@ public class ClusterInformationHandler {
             this.currentServers = new ArrayList<>();
         }
 
+        public synchronized void addServer(String nickname, String host, int port, Socket socket) {
+
+            String heartbeatStamp = Instant.now().toString();
+            currentServers.add(new ServerMetadata(nickname, host, port, socket, heartbeatStamp));
+        }
+
+        /**
+         * Attempting to use java streams to find the relevant server based on known connection
+         * @param socket
+         * @return
+         */
+        public synchronized Socket getServer(Socket socket) {
+            Optional<ServerMetadata> server = currentServers.stream().filter(metadata->metadata.socket.equals(socket)).findFirst();
+            return server.map(serverMetadata -> serverMetadata.socket).orElse(null);
+        }
+
         /**
          * Private data structure used by the ServerMetadata to contruct separate objects for each ChunkServer
          */
         private class ServerMetadata {
-            String nickname;
-            String host;
-            int port;
-            Socket socket;
+            final String nickname;
+            final String host;
+            final int port;
+            final Socket socket;
+            final UUID serverID;
             String heartbeatTimestamp;
-            int serverID;
 
             public ServerMetadata(String nickname, String host, int port, Socket socket, String heartbeatTimestamp) {
                 this.nickname = nickname;
@@ -64,10 +85,35 @@ public class ClusterInformationHandler {
                 this.port = port;
                 this.socket = socket;
                 this.heartbeatTimestamp = heartbeatTimestamp;
+
+                this.serverID = UUID.randomUUID();
             }
 
+            public String getNickname() {
+                return nickname;
+            }
 
+            public String getHost() {
+                return host;
+            }
+
+            public int getPort() {
+                return port;
+            }
+
+            public Socket getSocket() {
+                return socket;
+            }
+
+            public UUID getServerID() {
+                return serverID;
+            }
+
+            public String getHeartbeatTimestamp() {
+                return heartbeatTimestamp;
+            }
         }
+
 
     }
 
@@ -103,19 +149,26 @@ public class ClusterInformationHandler {
         /**
          * Metadata for each chunk, contains the chunkNumber of the associated file,
          * and a list of ID's that when used with the ServerHandler, can get relevant details
+         * Default size of Chunk is 64kb, default size of slice is 8kb
          */
         private class ChunkMetadata {
             int chunkNumber;
+            int chunkSize;
+            String chunkHash;
             ArrayList<Integer> serversHoldingChunk;
-            //String chunkHash;
+            ArrayList<String> sliceCheckSums;
 
 
-            public ChunkMetadata(int chunkNumber) {
+            public ChunkMetadata(int chunkNumber, int chunkSize, String chunkHash) {
                 this.chunkNumber = chunkNumber;
+                this.chunkSize = chunkSize;
+                this.chunkHash = chunkHash;
                 this.serversHoldingChunk = new ArrayList<>();
+                this.sliceCheckSums = new ArrayList<>();
             }
         }
 
     }
+
 
 }

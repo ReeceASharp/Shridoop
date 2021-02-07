@@ -19,6 +19,9 @@ import java.util.concurrent.Semaphore;
 import static fileSystem.protocols.Protocol.*;
 
 public class ChunkServer extends Node implements Heartbeat {
+    private static final int SLICE_SIZE = 8192;
+
+
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
     //needed for console commands, not the most DRY

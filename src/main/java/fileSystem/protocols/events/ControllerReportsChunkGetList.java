@@ -8,9 +8,16 @@ public class ControllerReportsChunkGetList implements Event {
 
     //whether the request is valid
     private final int status;
+    private final int numberOfChunks;
 
-    public ControllerReportsChunkGetList(int status) {
+
+    public int getNumberOfChunks() {
+        return numberOfChunks;
+    }
+
+    public ControllerReportsChunkGetList(int status, int numberOfChunks) {
         this.status = status;
+        this.numberOfChunks = numberOfChunks;
 
         //TODO create a data structure that holds the metadata of the chunks and their associated ChunkServers
     }

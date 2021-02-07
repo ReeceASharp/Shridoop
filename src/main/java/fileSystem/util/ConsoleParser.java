@@ -69,8 +69,14 @@ public class ConsoleParser implements Runnable {
 
         //Node specific console commands
         if (tryCustom) {
-            if (!node.handleCommand(input))
-                response = "ERROR: Invalid input. Enter 'help' for available commands.";
+            try {
+                if (!node.handleCommand(input))
+                    response = "ERROR: Invalid input. Enter 'help' for available commands.";
+            } catch (NullPointerException ne) {
+                //Can be thrown inside Client 'add' command
+                //executes on File not found when requesting it be added to the
+                System.out.print("File not found.");
+            }
         }
 
         if (!quit)

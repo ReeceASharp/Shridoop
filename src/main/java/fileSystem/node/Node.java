@@ -15,6 +15,8 @@ import static fileSystem.util.ConsoleConstant.*;
  * Abstraction of a node, which each part of the system is build upon
  */
 public abstract class Node {
+    public static final int CHUNK_SIZE = 65536;
+
     //reference to the server
     protected TCPServer server;
 

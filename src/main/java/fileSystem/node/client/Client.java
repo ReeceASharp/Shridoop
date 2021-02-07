@@ -6,24 +6,30 @@ import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
+import fileSystem.util.ContactList;
+import fileSystem.util.FileChunker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
-    final String[] commandList = {"add", "delete", "get", "list-files"};
-    private String controllerHost;
-    private int controllerPort;
-    private Socket controllerSocket;
+    private static final Random random = new Random();
 
+    final String[] commandList = {"add", "delete", "get", "list-files"};
     private final Semaphore commandLock;
+    private final String controllerHost;
+    private final int controllerPort;
+    private Socket controllerSocket;
 
     public Client(String host, int port) {
         this.controllerHost = host;
@@ -57,7 +63,8 @@ public class Client extends Node {
 
         switch (tokens[0]) {
             case "add":
-                request(new ClientRequestsFileAdd(tokens[1]));
+                request(new ClientRequestsFileAdd(tokens[1],
+                        FileChunker.getChunkNumber(tokens[1])));
                 break;
             case "delete":
                 request(new ClientRequestsFileDelete(tokens[1]));
@@ -97,11 +104,7 @@ public class Client extends Node {
             //Note: this could have problems if the response never comes for some reason
             commandLock.acquire();
 
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | IOException e) {
             e.printStackTrace();
         }
     }
@@ -132,12 +135,13 @@ public class Client extends Node {
 
     /**
      * Displays whether the delete request went through
+     *
      * @param e The event to be converted to ControllerReportsFileDeleteStatus
      */
     private void deleteStatus(Event e) {
         ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
 
-        switch(response.getStatus()) {
+        switch (response.getStatus()) {
             case RESPONSE_SUCCESS:
                 break;
             case RESPONSE_FAILURE:
@@ -151,7 +155,50 @@ public class Client extends Node {
     private void addFileToServers(Event e) {
         ControllerReportsChunkAddList response = (ControllerReportsChunkAddList) e;
 
-        //TODO: handle logic of adding the file to the servers
+        // Setup file input streams to handle the chunk creation of the file,
+        // use try-with-resource to simplify the closing/cleanup of the input streams
+        try (FileInputStream fis = new FileInputStream(response.getFile());
+             BufferedInputStream bis = new BufferedInputStream(fis)) {
+            int bytesRead;
+            //maximum size of chunk
+            byte[] buffer = new byte[CHUNK_SIZE];
+
+            // Dynamically fetch data from the file in chunksize increments, we already calculated and passed the
+            // # of chunks to the Controller, and it responded with a set of servers for each chunk to be sent to
+            for (ContactList chunk : response.getChunkDestinations()) {
+                // Get chunk data, and copy into a dynamically sized array to minimize chunk size
+                // this is only really useful for the last chunk of a large file, or the only
+                // chunk of a small file
+                bytesRead = bis.read(buffer);
+                byte[] bytesToSend = new byte[bytesRead];
+                System.arraycopy(buffer, 0, bytesToSend, 0, bytesRead);
+
+                // Pick a random one to help distribute the bandwidth
+                ArrayList<String> serverList = chunk.getServersToContact();
+                int serverToContact = random.nextInt() % serverList.size();
+                String[] hostPort = serverList.get(serverToContact).split(":");
+
+                // Remove it from the list as it's the one being contacted
+                serverList.remove(serverToContact);
+
+                // Try to open a new connection with the server
+                Socket serverSocket;
+                try {
+                    // Open a connection with the chunk server
+                    serverSocket = new Socket(hostPort[0], Integer.parseInt(hostPort[1]));
+                } catch (IOException unknownHostException) {
+                    unknownHostException.printStackTrace();
+                    continue;
+                }
+
+                ClientSendsFileChunk chunkSend = new ClientSendsFileChunk(chunk.getChunkNumber(), bytesToSend, serverList);
+
+                sendMessage(serverSocket, chunkSend);
+            }
+        } catch (IOException fileNotFoundException) {
+            fileNotFoundException.printStackTrace();
+        }
+
 
         commandLock.release();
     }
@@ -175,8 +222,7 @@ public class Client extends Node {
                 System.out.println(file);
             }
             System.out.println("  ************  ");
-        }
-        else if (response.getStatus() == RESPONSE_FAILURE) {
+        } else if (response.getStatus() == RESPONSE_FAILURE) {
             System.out.println("Failure to handle list query.");
         }
         //Now that command passed, release

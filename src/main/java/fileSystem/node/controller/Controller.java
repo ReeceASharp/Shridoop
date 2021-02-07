@@ -6,6 +6,7 @@ import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
+import fileSystem.util.ContactList;
 import fileSystem.util.HeartbeatHandler;
 import fileSystem.util.LogConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -15,7 +16,10 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 import static fileSystem.protocols.Protocol.*;
 
@@ -23,10 +27,11 @@ public class Controller extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
     //properties
+    private static final int REPLICATION_FACTOR = 3;
     private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
     private final int port;
     private final ArrayList<ServerData> chunkServerList;
-
+    private final ClusterInformationHandler clusterHandler;
     //control flow
     private boolean isActive;
     private HeartbeatHandler timer;
@@ -38,6 +43,7 @@ public class Controller extends Node implements Heartbeat {
         isActive = false;
         this.port = port;
         chunkServerList = new ArrayList<>();
+        clusterHandler = new ClusterInformationHandler();
     }
 
     public static void main(String[] args) throws UnknownHostException {
@@ -181,7 +187,8 @@ public class Controller extends Node implements Heartbeat {
 
     /**
      * Packages and sends off the current file information the Controller is keeping to the client
-     * @param e  Event that contains a ClientRequestsFileList, contains an optional path parameter to search through
+     *
+     * @param e      Event that contains a ClientRequestsFileList, contains an optional path parameter to search through
      * @param socket
      */
     private void fileList(Event e, Socket socket) {
@@ -198,7 +205,7 @@ public class Controller extends Node implements Heartbeat {
     /**
      * Respond with a current list of ChunkServers containing all different chunks of the file
      *
-     * @param e  The event containing the file the client wants
+     * @param e      The event containing the file the client wants
      * @param socket
      */
     private void fileGet(Event e, Socket socket) {
@@ -207,14 +214,14 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        Event response = new ControllerReportsChunkGetList(RESPONSE_FAILURE);
+        Event response = new ControllerReportsChunkGetList(RESPONSE_FAILURE, 0);
         sendMessage(socket, response);
     }
 
     /**
      * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
      *
-     * @param e the event containing the file that the client wants deleted
+     * @param e      the event containing the file that the client wants deleted
      * @param socket
      */
     private void fileDelete(Event e, Socket socket) {
@@ -227,17 +234,34 @@ public class Controller extends Node implements Heartbeat {
     }
 
     /**
-     * Respond with a current list of ChunkServers to open a connection to, and send different chunks to
+     * Respond with a current list of ChunkServers to open a connection to send chunks
      *
-     * @param e the event that contains the file being requested to be added
+     * @param e      the event that contains the file being requested to be added
      * @param socket
      */
     private void fileAdd(Event e, Socket socket) {
         ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
 
+        ArrayList<ContactList> chunkDestinations = new ArrayList<>();
+        ArrayList<String> selectedServers = new ArrayList<>();
+        //for each chunk, generate a random list of servers to contact
+        for (int i = 1; i <= request.getNumberOfChunks(); i++) {
+
+            //Generate a random list of distinct ints from 0 to n ChunkServers, then grab k amount needed for replication
+            List<Integer> randomServerIndexes = new Random().ints(0, chunkServerList.size())
+                    .distinct().limit(REPLICATION_FACTOR).boxed().collect(Collectors.toList());
+            //convert to actual server contact details and save
+            for (Integer serverIndex : randomServerIndexes)
+                selectedServers.add(String.format("%s:%d", chunkServerList.get(serverIndex).name,
+                        chunkServerList.get(serverIndex).port));
+            //add to the running list of chunk destinations and reset for the next chunk
+            chunkDestinations.add(new ContactList(i, new ArrayList<>(selectedServers)));
+            selectedServers.clear();
+        }
         //TODO: logic to get a list of servers to pass back to the client for it to send the data to directly
 
-        Event response = new ControllerReportsChunkAddList(RESPONSE_FAILURE, null);
+        Event response = new ControllerReportsChunkAddList(RESPONSE_SUCCESS,
+                request.getFile(), chunkDestinations);
         sendMessage(socket, response);
     }
 
@@ -335,17 +359,6 @@ public class Controller extends Node implements Heartbeat {
             ProcessBuilder pb = new ProcessBuilder("C:\\Program Files\\Git\\bin\\bash.exe",
                     "-c", "bash ./start_chunks.sh " + port);
             Process p = pb.start();
-
-            //FIXME: This code chunk blocks, which blocks subsequent commands from being entered
-//            //get the output from the script, which includes just the information
-//            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-//            StringBuilder builder = new StringBuilder();
-//            String line;
-//            while ((line = reader.readLine()) != null) {
-//                builder.append(line);
-//                builder.append(System.getProperty("line.separator"));
-//            }
-//            System.out.println(builder.toString());
 
         } catch (Exception e) {
             e.printStackTrace();

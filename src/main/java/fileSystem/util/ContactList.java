@@ -1,0 +1,35 @@
+package fileSystem.util;
+
+import javafx.util.Pair;
+
+import java.util.ArrayList;
+
+/**
+ * Keeps track of the contact information for each of the servers, organized by chunk
+ * Used by both GET and ADD protocols
+ * Note: serversToContact combines the host and port separated by a ':', which is an illegal
+ * character for the hostname. Ref: https://man7.org/linux/man-pages/man7/hostname.7.html
+ */
+public class ContactList {
+    private final int chunkNumber;
+    private final ArrayList<String> serversToContact;
+
+    public ContactList(int chunkNumber, ArrayList<String> serversToContact) {
+        this.chunkNumber = chunkNumber;
+        this.serversToContact = serversToContact;
+    }
+
+    public int getChunkNumber() {
+        return chunkNumber;
+    }
+
+    /**
+     * Returns a list of servers that contain/will contain this chunk
+     * Note: The string needs to be separated, as it's in the form of "[HOST]:[PORT]"
+     * @return
+     */
+    public ArrayList<String> getServersToContact() {
+        return serversToContact;
+    }
+
+}

@@ -21,6 +21,7 @@ public class Protocol {
     public static final int CHUNK_SERVER_SENDS_MINOR_HEARTBEAT = 23;
     public static final int CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT = 24;
 
+
     // ChunkServer -> ChunkServer
     public static final int CHUNK_SERVER_REQUESTS_REPLICATION = 30;
     public static final int CHUNK_SERVER_REPORTS_REPLICATION = 31;
