@@ -1,5 +1,8 @@
 package fileSystem.node.controller;
 
+import fileSystem.transport.SocketStream;
+
+import java.io.IOException;
 import java.net.Socket;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -34,9 +37,6 @@ public class ClusterInformationHandler {
     private final FileMetadataHandler fileHandler;
     private final ServerMetadataHandler serverHandler;
 
-    public static final int CHUNK_SIZE = 65536; //2^16, 64k
-
-
     public ClusterInformationHandler() {
         fileHandler = new FileMetadataHandler();
         serverHandler = new ServerMetadataHandler();
@@ -52,7 +52,7 @@ public class ClusterInformationHandler {
             this.currentServers = new ArrayList<>();
         }
 
-        public synchronized void addServer(String nickname, String host, int port, Socket socket) {
+        public synchronized void addServer(String nickname, String host, int port, Socket socket) throws IOException {
 
             String heartbeatStamp = Instant.now().toString();
             currentServers.add(new ServerMetadata(nickname, host, port, socket, heartbeatStamp));
@@ -60,12 +60,13 @@ public class ClusterInformationHandler {
 
         /**
          * Attempting to use java streams to find the relevant server based on known connection
+         * TODO: FIX
          * @param socket
          * @return
          */
         public synchronized Socket getServer(Socket socket) {
-            Optional<ServerMetadata> server = currentServers.stream().filter(metadata->metadata.socket.equals(socket)).findFirst();
-            return server.map(serverMetadata -> serverMetadata.socket).orElse(null);
+            Optional<ServerMetadata> server = currentServers.stream().filter(metadata->metadata.socketStream.socket.equals(socket)).findFirst();
+            return server.map(serverMetadata -> serverMetadata.socketStream.socket).orElse(null);
         }
 
         /**
@@ -75,15 +76,15 @@ public class ClusterInformationHandler {
             final String nickname;
             final String host;
             final int port;
-            final Socket socket;
+            final SocketStream socketStream;
             final UUID serverID;
             String heartbeatTimestamp;
 
-            public ServerMetadata(String nickname, String host, int port, Socket socket, String heartbeatTimestamp) {
+            public ServerMetadata(String nickname, String host, int port, Socket socket, String heartbeatTimestamp) throws IOException {
                 this.nickname = nickname;
                 this.host = host;
                 this.port = port;
-                this.socket = socket;
+                this.socketStream = new SocketStream(socket);
                 this.heartbeatTimestamp = heartbeatTimestamp;
 
                 this.serverID = UUID.randomUUID();
@@ -101,9 +102,6 @@ public class ClusterInformationHandler {
                 return port;
             }
 
-            public Socket getSocket() {
-                return socket;
-            }
 
             public UUID getServerID() {
                 return serverID;

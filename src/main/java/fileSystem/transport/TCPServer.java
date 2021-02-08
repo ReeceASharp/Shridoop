@@ -11,8 +11,6 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
-//TODO: Potentially refactor to have a variant for the Controller to utilize a threadpool instead
-
 /**
  * Organizes the creation and listening of incoming connections
  */
@@ -23,13 +21,8 @@ public class TCPServer implements Runnable {
 
     private final Node node;
     private final int port;
-    private ServerSocket serverSocket;
     private final Semaphore setupLock;
-
-    // Constructor, calls the main constructor with a port # of 0 will pick a random port
-    public TCPServer(Node node, Semaphore setupLock) {
-        this(node, 0, setupLock);
-    }
+    private ServerSocket serverSocket;
 
     // Constructor that is used if a certain port must be used for the server
     public TCPServer(Node node, int port, Semaphore setupLock) {
@@ -56,7 +49,7 @@ public class TCPServer implements Runnable {
         logger.debug(String.format("Port:%s, Socket:%s %n",
                 port, serverSocket.getLocalSocketAddress().toString()));
 
-        //set a reference after it has been fully constructed
+        //set a reference after it has been fully constructed, used for cleanup
         node.setTCPServer(this);
 
         try {
@@ -69,10 +62,13 @@ public class TCPServer implements Runnable {
             while (true) {
                 //block for incoming connections
                 Socket clientSocket = serverSocket.accept();
-
+                //logger.debug("RECEIVED CONNECTION REQUEST" + clientSocket);
                 //handle new incoming connection
-                new Thread(new TCPReceiver(node, clientSocket, this)).start();
+                node.connectionHandler.addConnection(clientSocket);
+                SocketStream ss = node.connectionHandler.getSocketStream(clientSocket);
+                new Thread(new TCPReceiver(node, ss, this)).start();
 
+                //logger.debug(node.connectionHandler);
             }
         } catch (SocketException e) {
             System.out.println("Exiting.");

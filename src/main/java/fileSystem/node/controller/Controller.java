@@ -145,7 +145,6 @@ public class Controller extends Node implements Heartbeat {
             e.printStackTrace();
         } catch (NullPointerException ne) {
             synchronized (chunkServerList) {
-                logger.debug("Size: " + chunkServerList.size());
                 for (ServerData chunkServer : chunkServerList) {
                     logger.debug(chunkServer);
                 }
@@ -300,7 +299,7 @@ public class Controller extends Node implements Heartbeat {
         //TODO: respond
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
 
-        logger.debug("Responding to request on socket: " + socket.getLocalSocketAddress());
+        logger.debug("Responding to request on socket: " + socket);
         sendMessage(socket, event);
 
     }

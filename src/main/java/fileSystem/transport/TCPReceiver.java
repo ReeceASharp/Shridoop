@@ -17,17 +17,20 @@ public class TCPReceiver implements Runnable {
 
     private final Node node;
     private final Socket socket;
+    //private final ObjectInputStream inStream;
     private final TCPServer server;
 
-    public TCPReceiver(Node node, Socket socket, TCPServer server) {
+    public TCPReceiver(Node node, SocketStream socketStream, TCPServer server) {
         this.node = node;
-        this.socket = socket;
+        this.socket = socketStream.socket;
+        //this.inStream = socketStream.inStream;
         this.server = server;
     }
 
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
+        //logger.debug("LISTENING TO " + socket + inStream);
 
         // add reference to TCPServer to allow it to keep track of all current receiving threads for
         // this node and clean them up when exiting
@@ -91,8 +94,6 @@ public class TCPReceiver implements Runnable {
                     socket.close();
                 } catch (IOException e) {
                     e.printStackTrace();
-                } catch (Exception e) {
-                    logger.error(socket);
                 }
         }
     }

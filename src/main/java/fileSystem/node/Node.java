@@ -1,6 +1,8 @@
 package fileSystem.node;
 
 import fileSystem.protocols.Event;
+import fileSystem.transport.ConnectionHandler;
+import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPSender;
 import fileSystem.transport.TCPServer;
 
@@ -16,7 +18,8 @@ import static fileSystem.util.ConsoleConstant.*;
  */
 public abstract class Node {
     public static final int CHUNK_SIZE = 65536;
-
+    //Connection handler that generates the input/output streams for easy access/reusability
+    public final ConnectionHandler connectionHandler = new ConnectionHandler();
     //reference to the server
     protected TCPServer server;
 
@@ -48,7 +51,10 @@ public abstract class Node {
      * @param event  The message being sent (Uses objects)
      */
     protected void sendMessage(Socket socket, Event event) {
-        new Thread(new TCPSender(socket, event)).start();
+        //convert socket to socketstream
+        SocketStream ss = connectionHandler.getSocketStream(socket);
+        //System.out.println("SENDING MESSAGE: " + ss);
+        new Thread(new TCPSender(ss, event)).start();
     }
 
     /**
