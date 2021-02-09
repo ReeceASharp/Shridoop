@@ -4,6 +4,7 @@ import fileSystem.node.Heartbeat;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
+import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
 import fileSystem.util.ContactList;
@@ -12,6 +13,7 @@ import fileSystem.util.LogConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -31,7 +33,7 @@ public class Controller extends Node implements Heartbeat {
     private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
     private final int port;
     private final ArrayList<ServerData> chunkServerList;
-    private final ClusterInformationHandler clusterHandler;
+    //private final ClusterInformationHandler clusterHandler;
     //control flow
     private boolean isActive;
     private HeartbeatHandler timer;
@@ -43,7 +45,7 @@ public class Controller extends Node implements Heartbeat {
         isActive = false;
         this.port = port;
         chunkServerList = new ArrayList<>();
-        clusterHandler = new ClusterInformationHandler();
+        //clusterHandler = new ClusterInformationHandler();
     }
 
     public static void main(String[] args) throws UnknownHostException {
@@ -288,18 +290,18 @@ public class Controller extends Node implements Heartbeat {
 
     private void chunkServerRegistration(Event e, Socket socket) {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
-        ServerData temp = new ServerData(request.getName(), request.getIP(), request.getPort(), socket);
 
-        synchronized (chunkServerList) {
-            chunkServerList.add(temp);
-        }
 
-        logger.debug("Received Registration Request: " + temp);
+        //ServerData temp = new ServerData(request.getName(), request.getIP(), request.getPort(), socket);
 
+//        synchronized (chunkServerList) {
+//            chunkServerList.add(temp);
+//        }
+
+        logger.debug("Received Registration Request: " + socket);
         //TODO: respond
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
 
-        logger.debug("Responding to request on socket: " + socket);
         sendMessage(socket, event);
 
     }

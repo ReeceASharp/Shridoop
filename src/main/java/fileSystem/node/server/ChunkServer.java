@@ -20,7 +20,7 @@ import java.util.concurrent.Semaphore;
 import static fileSystem.protocols.Protocol.*;
 
 public class ChunkServer extends Node implements Heartbeat {
-    private static final int SLICE_SIZE = 8192;
+    //private static final int SLICE_SIZE = 8192;
 
 
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
@@ -29,12 +29,12 @@ public class ChunkServer extends Node implements Heartbeat {
     final String[] commandList = {"list-files", "config"};
     private final int controllerPort;
     private final String name;
-    private final FileHandler fileHandler;
+    //private final FileHandler fileHandler;
 
     public ChunkServer(int portConnect, String name, String homePath) {
         this.controllerPort = portConnect;
         this.name = name;
-        this.fileHandler = new FileHandler(homePath);
+        //this.fileHandler = new FileHandler(homePath);
     }
 
     public static void main(String[] args) throws UnknownHostException {
@@ -42,15 +42,11 @@ public class ChunkServer extends Node implements Heartbeat {
         final int portConnect = Integer.parseInt(args[1]);
         final String name = args[2];
         final String homePath = args[3];
-
-        logger.debug(String.format("PortListen: %d, PortConnect: %d, Name: %s", portListen, portConnect, name));
-
-        //random port
-        //int port = 0;
-
-        //get the hostname and IP address
         String host = InetAddress.getLocalHost().getHostName();
-        logger.debug(String.format("Host: %s%n", host));
+
+
+        logger.debug(String.format("PortListen: %d, PortConnect: %d, Name: %s, Host: %s",
+                portListen, portConnect, name, host));
 
         //get an object reference to be able to call functions and organize control flow
         ChunkServer server = new ChunkServer(portConnect, name, homePath);
@@ -71,12 +67,6 @@ public class ChunkServer extends Node implements Heartbeat {
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-
-        try {
-            Thread.sleep(50 * 1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     /**
@@ -88,20 +78,23 @@ public class ChunkServer extends Node implements Heartbeat {
      * @throws IOException thrown if the socket creation fails for some reason
      */
     private static void sendRegistration(ChunkServer node, String host, int port) throws IOException {
-        logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
+        //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
-        //open a socket/connection with the Controller, and set variables to be referenced later
-        Socket controllerSocket = new Socket(host, port);
-        SocketStream ss = node.connectionHandler.addConnection(controllerSocket);
         //construct the message, and get the bytes
         Event e = new ChunkServerRequestsRegistration(node.getServerIP(),
                 node.getServerPort(), node.getName());
 
+        //open a socket/connection with the Controller, and set variables to be referenced later
+        Socket controllerSocket = new Socket(host, port);
+
+        SocketStream ss = new SocketStream(controllerSocket);
+        node.connectionHandler.addConnection(ss);
         //create a listener on this new connection to listen for future requests/responses
         Thread receiver = new Thread(new TCPReceiver(node, ss, node.server));
         receiver.start();
 
         //Send the message to the Registry to attempt registration
+        //logger.debug(node.connectionHandler);
         node.sendMessage(controllerSocket, e);
     }
 
@@ -151,11 +144,11 @@ public class ChunkServer extends Node implements Heartbeat {
     private void sendFileChunk(Event e, Socket socket) {
         ClientRequestsFileChunk request = (ClientRequestsFileChunk) e;
 
-        byte[] fileData = fileHandler.getFileData(request.getFile());
-        Event event = new ChunkServerSendsFileChunk(fileData);
+        // byte[] fileData = fileHandler.getFileData(request.getFile());
+        //Event event = new ChunkServerSendsFileChunk(fileData);
 
 
-        sendMessage(socket, event);
+        //sendMessage(socket, event);
     }
 
     /**

@@ -1,6 +1,5 @@
 package fileSystem.transport;
 
-import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 
@@ -12,6 +11,10 @@ public class ConnectionHandler {
     private final ArrayList<SocketStream> connections;
 
 
+    public ConnectionHandler() {
+        this.connections = new ArrayList<>();
+    }
+
     @Override
     public String toString() {
         return "ConnectionHandler{" +
@@ -19,14 +22,8 @@ public class ConnectionHandler {
                 '}';
     }
 
-    public ConnectionHandler() {
-        this.connections = new ArrayList<>();
-    }
-
-    public SocketStream addConnection(Socket socket) throws IOException {
-        SocketStream stream = new SocketStream(socket);
-        connections.add(stream);
-        return stream;
+    public void addConnection(SocketStream ss) {
+        connections.add(ss);
     }
 
     public void removeConnection(Socket socket) {
@@ -35,11 +32,13 @@ public class ConnectionHandler {
 
     public SocketStream getSocketStream(Socket socket) {
         for (SocketStream ss : connections)
-            if (ss.socket.equals(socket))
+            if (ss.socket.equals(socket)) {
+                System.out.println("FOUND SOCKET: " + socket);
                 return ss;
+            }
+        System.out.println("WAS NOT ABLE TO FIND CONNECTION: " + socket);
         return null;
     }
-
 
 
 }

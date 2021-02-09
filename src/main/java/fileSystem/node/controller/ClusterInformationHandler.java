@@ -55,7 +55,7 @@ public class ClusterInformationHandler {
         public synchronized void addServer(String nickname, String host, int port, Socket socket) throws IOException {
 
             String heartbeatStamp = Instant.now().toString();
-            currentServers.add(new ServerMetadata(nickname, host, port, socket, heartbeatStamp));
+            //currentServers.add(new ServerMetadata(nickname, host, port, socket, heartbeatStamp));
         }
 
         /**

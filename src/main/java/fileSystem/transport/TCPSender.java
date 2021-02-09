@@ -31,11 +31,9 @@ public class TCPSender implements Runnable {
         Thread.currentThread().setName(getClass().getSimpleName());
         try {
             //synchronize access so multiple threads don't attempt to write and corrupt the message
-            synchronized (socket) {
                 //logger.debug("SENDING MESSAGE" + socket);
-                outStream.writeObject(eventToSend);
-                outStream.flush();
-            }
+            outStream.writeObject(eventToSend);
+            outStream.flush();
         } catch (SocketException se) {
             logger.error(socket);
             se.printStackTrace();

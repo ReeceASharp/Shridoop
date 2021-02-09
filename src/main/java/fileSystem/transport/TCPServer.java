@@ -61,11 +61,11 @@ public class TCPServer implements Runnable {
 
             while (true) {
                 //block for incoming connections
-                Socket clientSocket = serverSocket.accept();
-                //logger.debug("RECEIVED CONNECTION REQUEST" + clientSocket);
+                Socket incomingSocket = serverSocket.accept();
                 //handle new incoming connection
-                node.connectionHandler.addConnection(clientSocket);
-                SocketStream ss = node.connectionHandler.getSocketStream(clientSocket);
+                SocketStream ss = new SocketStream(incomingSocket);
+                node.connectionHandler.addConnection(ss);
+
                 new Thread(new TCPReceiver(node, ss, this)).start();
 
                 //logger.debug(node.connectionHandler);

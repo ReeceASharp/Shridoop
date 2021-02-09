@@ -8,12 +8,14 @@ import java.net.Socket;
 public class SocketStream {
     public final Socket socket;
     public final ObjectOutputStream outStream;
-    //public final ObjectInputStream inStream;
+    public ObjectInputStream inStream;
 
     public SocketStream(Socket socket) throws IOException {
         this.socket = socket;
         outStream = new ObjectOutputStream(socket.getOutputStream());
+        outStream.flush();
         //inStream = new ObjectInputStream(socket.getInputStream());
+        System.out.println("CREATING NEW SOCKETSTREAM: " + socket);
     }
 
     @Override
@@ -21,6 +23,19 @@ public class SocketStream {
         return "SocketStream{" +
                 "socket=" + socket +
                 ", outStream=" + outStream +
+                ", inStream=" + inStream +
                 '}';
     }
+
+    public void cleanup() {
+
+        try {
+            inStream.close();
+            outStream.close();
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

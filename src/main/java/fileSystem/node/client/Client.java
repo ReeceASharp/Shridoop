@@ -92,10 +92,10 @@ public class Client extends Node {
             if (controllerSocket == null) {
 
                 controllerSocket = new Socket(controllerHost, controllerPort);
-                connectionHandler.addConnection(controllerSocket);
+                SocketStream ss = new SocketStream(controllerSocket);
+                connectionHandler.addConnection(ss);
 
                 //create a listener on this new connection to listen for future responses
-                SocketStream ss = connectionHandler.getSocketStream(controllerSocket);
                 Thread receiver = new Thread(new TCPReceiver(this, ss, server));
                 receiver.start();
             }
