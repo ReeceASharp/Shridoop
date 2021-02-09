@@ -19,6 +19,15 @@ public class TCPServer implements Runnable {
 
     private final ArrayList<TCPReceiver> currentConnections;
 
+    @Override
+    public String toString() {
+        return "TCPServer{" +
+                "currentConnections=" + currentConnections +
+                ", port=" + port +
+                ", serverSocket=" + serverSocket +
+                '}';
+    }
+
     private final Node node;
     private final int port;
     private final Semaphore setupLock;
@@ -98,7 +107,7 @@ public class TCPServer implements Runnable {
         return port;
     }
 
-    public String getServerIP() {
+    public String getServerHost() {
         return serverSocket.getInetAddress().getHostName();
     }
 

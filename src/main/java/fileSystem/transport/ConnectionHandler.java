@@ -1,10 +1,13 @@
 package fileSystem.transport;
 
+import fileSystem.metadata.ServerMetadata;
+
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Optional;
 
 /**
- * Wrapps the socket streams, and holds onto the connection stream information, so that each TCPSender/Receiver
+ * Wraps the socket streams, and holds onto the connection stream information, so that each TCPSender/Receiver
  * isn't reconstructing the objectstreams and causing corruption exceptions.
  */
 public class ConnectionHandler {
@@ -31,13 +34,8 @@ public class ConnectionHandler {
     }
 
     public SocketStream getSocketStream(Socket socket) {
-        for (SocketStream ss : connections)
-            if (ss.socket.equals(socket)) {
-                System.out.println("FOUND SOCKET: " + socket);
-                return ss;
-            }
-        System.out.println("WAS NOT ABLE TO FIND CONNECTION: " + socket);
-        return null;
+        Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.socket.equals(socket)).findFirst();
+        return server.orElse(null);
     }
 
 

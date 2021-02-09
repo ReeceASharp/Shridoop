@@ -12,7 +12,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.Semaphore;
@@ -27,34 +26,35 @@ public class ChunkServer extends Node implements Heartbeat {
 
     //needed for console commands, not the most DRY
     final String[] commandList = {"list-files", "config"};
-    private final int controllerPort;
-    private final String name;
+    private final String nickname;
+    private final String homePath;
     //private final FileHandler fileHandler;
 
-    public ChunkServer(int portConnect, String name, String homePath) {
-        this.controllerPort = portConnect;
-        this.name = name;
+    public ChunkServer(String nickname, String homePath) {
+        this.nickname = nickname;
+        this.homePath = homePath;
         //this.fileHandler = new FileHandler(homePath);
     }
 
     public static void main(String[] args) throws UnknownHostException {
-        final int portListen = Integer.parseInt(args[0]);
-        final int portConnect = Integer.parseInt(args[1]);
-        final String name = args[2];
-        final String homePath = args[3];
-        String host = InetAddress.getLocalHost().getHostName();
+        final String controllerHost = args[0];
+        final int controllerPort = Integer.parseInt(args[1]);
+        final int listenPort = Integer.parseInt(args[2]);
+        final String nickname = args[3];
+        final String homePath = args[4];
+        //String host = InetAddress.getLocalHost().getHostName();
 
 
-        logger.debug(String.format("PortListen: %d, PortConnect: %d, Name: %s, Host: %s",
-                portListen, portConnect, name, host));
+        logger.debug(String.format("Listen: %d, Nickname: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
+                listenPort, nickname, homePath, controllerPort, controllerHost));
 
         //get an object reference to be able to call functions and organize control flow
-        ChunkServer server = new ChunkServer(portConnect, name, homePath);
+        ChunkServer server = new ChunkServer(nickname, homePath);
 
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
         setupLock.tryAcquire();
-        Thread tcpServer = new Thread(new TCPServer(server, portListen, setupLock));
+        Thread tcpServer = new Thread(new TCPServer(server, listenPort, setupLock));
         tcpServer.start();
 
         //create the console, this may not be needed for the chunkServer, but could be useful for debugging
@@ -63,7 +63,7 @@ public class ChunkServer extends Node implements Heartbeat {
 
         try {
             setupLock.acquire();
-            sendRegistration(server, host, portConnect);
+            sendRegistration(server, controllerHost, controllerPort);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -73,19 +73,20 @@ public class ChunkServer extends Node implements Heartbeat {
      * Chunk Server wants to register with the Controller after setting up, throw a message at it to check
      *
      * @param node the ChunkServer sending the registration request
-     * @param host The hostname/IP of the ChunkServer
-     * @param port The port of the ChunkServer
+     * @param controllerHost The hostname/IP of the ChunkServer
+     * @param controllerPort The port of the ChunkServer
      * @throws IOException thrown if the socket creation fails for some reason
      */
-    private static void sendRegistration(ChunkServer node, String host, int port) throws IOException {
+    private static void sendRegistration(ChunkServer node, String controllerHost, int controllerPort) throws IOException {
         //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(node.getServerIP(),
-                node.getServerPort(), node.getName());
+        Event e = new ChunkServerRequestsRegistration(node.getNickname(),
+                node.getServerHost(),
+                node.getServerPort());
 
         //open a socket/connection with the Controller, and set variables to be referenced later
-        Socket controllerSocket = new Socket(host, port);
+        Socket controllerSocket = new Socket(controllerHost, controllerPort);
 
         SocketStream ss = new SocketStream(controllerSocket);
         node.connectionHandler.addConnection(ss);
@@ -102,7 +103,9 @@ public class ChunkServer extends Node implements Heartbeat {
      * Print out the details of the ChunkServer in a formatted way
      */
     private void showConfig() {
-        System.out.printf("ServerName: '%s', ControllerPort: '%s'%n", name, controllerPort);
+        System.out.printf("ServerName: '%s', Path: '%s'%n" +
+                "%s%n",
+                nickname, homePath, server);
     }
 
     @Override
@@ -171,8 +174,8 @@ public class ChunkServer extends Node implements Heartbeat {
         //logger.debug("Received Deregistration request");
 
         //respond
-        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
-                getServerPort(), getName());
+        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
+                getServerPort(), nickname);
 
         sendMessage(socket, event);
     }
@@ -225,8 +228,8 @@ public class ChunkServer extends Node implements Heartbeat {
         return commandList;
     }
 
-    public String getName() {
-        return name;
+    public String getNickname() {
+        return nickname;
     }
 
     @Override

@@ -123,8 +123,8 @@ public abstract class Node {
         return server.getServerPort();
     }
 
-    protected String getServerIP() {
-        return server.getServerIP();
+    protected String getServerHost() {
+        return server.getServerHost();
     }
 
 }
