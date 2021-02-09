@@ -4,6 +4,7 @@ import fileSystem.node.Heartbeat;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
+import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
@@ -11,7 +12,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.Semaphore;
@@ -19,47 +19,42 @@ import java.util.concurrent.Semaphore;
 import static fileSystem.protocols.Protocol.*;
 
 public class ChunkServer extends Node implements Heartbeat {
-    private static final int SLICE_SIZE = 8192;
+    //private static final int SLICE_SIZE = 8192;
 
 
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
     //needed for console commands, not the most DRY
     final String[] commandList = {"list-files", "config"};
-    private final int controllerPort;
-    private final String name;
-    private Socket controllerSocket;
-    private final FileHandler fileHandler;
+    private final String nickname;
+    private final String homePath;
+    //private final FileHandler fileHandler;
 
-    public ChunkServer(int portConnect, String name, String homePath) {
-        this.controllerPort = portConnect;
-        this.name = name;
-        this.fileHandler =  new FileHandler(homePath);
+    public ChunkServer(String nickname, String homePath) {
+        this.nickname = nickname;
+        this.homePath = homePath;
+        //this.fileHandler = new FileHandler(homePath);
     }
 
     public static void main(String[] args) throws UnknownHostException {
-        final int portListen = Integer.parseInt(args[0]);
-        final int portConnect = Integer.parseInt(args[1]);
-        final String name = args[2];
-        final String homePath = args[3];
+        final String controllerHost = args[0];
+        final int controllerPort = Integer.parseInt(args[1]);
+        final int listenPort = Integer.parseInt(args[2]);
+        final String nickname = args[3];
+        final String homePath = args[4];
+        //String host = InetAddress.getLocalHost().getHostName();
 
-        logger.debug(String.format("PortListen: %d, PortConnect: %d, Name: %s", portListen, portConnect, name));
 
-        //random port
-        //int port = 0;
-
-        //get the hostname and IP address
-        InetAddress ip = InetAddress.getLocalHost();
-        String host = ip.getHostName();
-        logger.debug(String.format("IP: %s, Host: %s%n", ip.getHostAddress(), host));
+        logger.debug(String.format("Listen: %d, Nickname: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
+                listenPort, nickname, homePath, controllerPort, controllerHost));
 
         //get an object reference to be able to call functions and organize control flow
-        ChunkServer server = new ChunkServer(portConnect, name, homePath);
+        ChunkServer server = new ChunkServer(nickname, homePath);
 
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
         setupLock.tryAcquire();
-        Thread tcpServer = new Thread(new TCPServer(server, portListen, setupLock));
+        Thread tcpServer = new Thread(new TCPServer(server, listenPort, setupLock));
         tcpServer.start();
 
         //create the console, this may not be needed for the chunkServer, but could be useful for debugging
@@ -68,14 +63,8 @@ public class ChunkServer extends Node implements Heartbeat {
 
         try {
             setupLock.acquire();
-            sendRegistration(server, host, portConnect);
+            sendRegistration(server, controllerHost, controllerPort);
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        try {
-            Thread.sleep(50 * 1000);
-        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
@@ -84,25 +73,29 @@ public class ChunkServer extends Node implements Heartbeat {
      * Chunk Server wants to register with the Controller after setting up, throw a message at it to check
      *
      * @param node the ChunkServer sending the registration request
-     * @param host The hostname/IP of the ChunkServer
-     * @param port The port of the ChunkServer
+     * @param controllerHost The hostname/IP of the ChunkServer
+     * @param controllerPort The port of the ChunkServer
      * @throws IOException thrown if the socket creation fails for some reason
      */
-    private static void sendRegistration(ChunkServer node, String host, int port) throws IOException {
-        logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
-
-        //open a socket/connection with the Controller, and set variables to be referenced later
-        Socket controllerSocket = new Socket(host, port);
+    private static void sendRegistration(ChunkServer node, String controllerHost, int controllerPort) throws IOException {
+        //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(node.getServerIP(),
-                node.getServerPort(), node.getName());
+        Event e = new ChunkServerRequestsRegistration(node.getNickname(),
+                node.getServerHost(),
+                node.getServerPort());
 
+        //open a socket/connection with the Controller, and set variables to be referenced later
+        Socket controllerSocket = new Socket(controllerHost, controllerPort);
+
+        SocketStream ss = new SocketStream(controllerSocket);
+        node.connectionHandler.addConnection(ss);
         //create a listener on this new connection to listen for future requests/responses
-        Thread receiver = new Thread(new TCPReceiver(node, controllerSocket, node.server));
+        Thread receiver = new Thread(new TCPReceiver(node, ss, node.server));
         receiver.start();
 
         //Send the message to the Registry to attempt registration
+        //logger.debug(node.connectionHandler);
         node.sendMessage(controllerSocket, e);
     }
 
@@ -110,7 +103,9 @@ public class ChunkServer extends Node implements Heartbeat {
      * Print out the details of the ChunkServer in a formatted way
      */
     private void showConfig() {
-        System.out.printf("ServerName: '%s', ControllerPort: '%s'%n", name, controllerPort);
+        System.out.printf("ServerName: '%s', Path: '%s'%n" +
+                "%s%n",
+                nickname, homePath, server);
     }
 
     @Override
@@ -145,16 +140,18 @@ public class ChunkServer extends Node implements Heartbeat {
 
     /**
      * Respond to the fileRequest from the client
+     *
      * @param e
      * @param socket
      */
     private void sendFileChunk(Event e, Socket socket) {
         ClientRequestsFileChunk request = (ClientRequestsFileChunk) e;
 
-        byte[] fileData = fileHandler.getFileData(request.getFile());
-        Event event = new ChunkServerSendsFileChunk(fileData);
+        // byte[] fileData = fileHandler.getFileData(request.getFile());
+        //Event event = new ChunkServerSendsFileChunk(fileData);
 
-        sendMessage(socket, event);
+
+        //sendMessage(socket, event);
     }
 
     /**
@@ -174,11 +171,11 @@ public class ChunkServer extends Node implements Heartbeat {
 
         //TODO: look at ControllerRequestsDeregistration for future feature info
 
-        logger.debug("Received Deregistration request");
+        //logger.debug("Received Deregistration request");
 
         //respond
-        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerIP(),
-                getServerPort(), getName());
+        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
+                getServerPort(), nickname);
 
         sendMessage(socket, event);
     }
@@ -231,8 +228,8 @@ public class ChunkServer extends Node implements Heartbeat {
         return commandList;
     }
 
-    public String getName() {
-        return name;
+    public String getNickname() {
+        return nickname;
     }
 
     @Override
@@ -251,13 +248,9 @@ public class ChunkServer extends Node implements Heartbeat {
     public void onHeartBeat(int type) {
         //send out a current summary of changes to the ChunkServer since the last heartbeat
 
-        Event event = type == HEARTBEAT_MAJOR ? constructMajorHeartbeat() : constructMinorHeartbeat();
+        //Event event = type == HEARTBEAT_MAJOR ? constructMajorHeartbeat() : constructMinorHeartbeat();
 
-        sendMessage(controllerSocket, event);
-    }
-
-    public void setControllerSocket(Socket controllerSocket) {
-        this.controllerSocket = controllerSocket;
+        //sendMessage(controllerSocket, event);
     }
 
     private Event constructMajorHeartbeat() {

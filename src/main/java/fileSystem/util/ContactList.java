@@ -2,6 +2,7 @@ package fileSystem.util;
 
 import javafx.util.Pair;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
@@ -10,7 +11,7 @@ import java.util.ArrayList;
  * Note: serversToContact combines the host and port separated by a ':', which is an illegal
  * character for the hostname. Ref: https://man7.org/linux/man-pages/man7/hostname.7.html
  */
-public class ContactList {
+public class ContactList implements Serializable {
     private final int chunkNumber;
     private final ArrayList<String> serversToContact;
 

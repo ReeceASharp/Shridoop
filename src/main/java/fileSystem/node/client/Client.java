@@ -3,6 +3,7 @@ package fileSystem.node.client;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
 import fileSystem.protocols.events.*;
+import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
 import fileSystem.util.ConsoleParser;
@@ -16,20 +17,21 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
 
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
-    private static final Random random = new Random();
 
     final String[] commandList = {"add", "delete", "get", "list-files"};
     private final Semaphore commandLock;
     private final String controllerHost;
     private final int controllerPort;
+    //Temporary, until I figure out a better solution
+    private String localFilePath;
     private Socket controllerSocket;
+
 
     public Client(String host, int port) {
         this.controllerHost = host;
@@ -63,7 +65,8 @@ public class Client extends Node {
 
         switch (tokens[0]) {
             case "add":
-                request(new ClientRequestsFileAdd(tokens[1],
+                localFilePath = tokens[1];
+                request(new ClientRequestsFileAdd(tokens[2],
                         FileChunker.getChunkNumber(tokens[1])));
                 break;
             case "delete":
@@ -83,17 +86,17 @@ public class Client extends Node {
     }
 
     private void request(Event event) {
-        logger.debug("Sending out Request.");
         try {
-            //grab a
+            //grab a lock
             commandLock.acquire();
-
             if (controllerSocket == null) {
+
                 controllerSocket = new Socket(controllerHost, controllerPort);
+                SocketStream ss = new SocketStream(controllerSocket);
+                connectionHandler.addConnection(ss);
 
                 //create a listener on this new connection to listen for future responses
-
-                Thread receiver = new Thread(new TCPReceiver(this, controllerSocket, server));
+                Thread receiver = new Thread(new TCPReceiver(this, ss, server));
                 receiver.start();
             }
 
@@ -157,7 +160,7 @@ public class Client extends Node {
 
         // Setup file input streams to handle the chunk creation of the file,
         // use try-with-resource to simplify the closing/cleanup of the input streams
-        try (FileInputStream fis = new FileInputStream(response.getFile());
+        try (FileInputStream fis = new FileInputStream(localFilePath);
              BufferedInputStream bis = new BufferedInputStream(fis)) {
             int bytesRead;
             //maximum size of chunk
@@ -173,13 +176,13 @@ public class Client extends Node {
                 byte[] bytesToSend = new byte[bytesRead];
                 System.arraycopy(buffer, 0, bytesToSend, 0, bytesRead);
 
-                // Pick a random one to help distribute the bandwidth
+                // Get the server at the front, the list is generated in a random order at the Controller,
+                // so there's no reason to use further randomness
                 ArrayList<String> serverList = chunk.getServersToContact();
-                int serverToContact = random.nextInt() % serverList.size();
-                String[] hostPort = serverList.get(serverToContact).split(":");
+                String[] hostPort = serverList.get(0).split(":");
 
                 // Remove it from the list as it's the one being contacted
-                serverList.remove(serverToContact);
+                serverList.remove(0);
 
                 // Try to open a new connection with the server
                 Socket serverSocket;
@@ -212,7 +215,6 @@ public class Client extends Node {
     }
 
     private void displayFiles(Event e) {
-        logger.debug("Received a File List response.");
         ControllerReportsFileList response = (ControllerReportsFileList) e;
 
         //TODO: get a list of files, display formatted information

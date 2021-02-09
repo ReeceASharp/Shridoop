@@ -1,5 +1,7 @@
 package fileSystem.node.controller;
 
+import fileSystem.metadata.ClusterInformationHandler;
+import fileSystem.metadata.ServerMetadata;
 import fileSystem.node.Heartbeat;
 import fileSystem.node.Node;
 import fileSystem.protocols.Event;
@@ -12,6 +14,7 @@ import fileSystem.util.LogConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -30,8 +33,8 @@ public class Controller extends Node implements Heartbeat {
     private static final int REPLICATION_FACTOR = 3;
     private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
     private final int port;
-    private final ArrayList<ServerData> chunkServerList;
     private final ClusterInformationHandler clusterHandler;
+
     //control flow
     private boolean isActive;
     private HeartbeatHandler timer;
@@ -42,7 +45,6 @@ public class Controller extends Node implements Heartbeat {
     public Controller(int port) {
         isActive = false;
         this.port = port;
-        chunkServerList = new ArrayList<>();
         clusterHandler = new ClusterInformationHandler();
     }
 
@@ -82,8 +84,9 @@ public class Controller extends Node implements Heartbeat {
         //send out requests to each of the current ChunkServers to make sure no failures have occurred
         Event e = new ControllerRequestsFunctionalHeartbeat();
 
-        for (ServerData cd : chunkServerList) {
-            sendMessage(cd.socket, e);
+
+        for (ServerMetadata smd : clusterHandler.getServers()) {
+            sendMessage(smd.socket, e);
         }
     }
 
@@ -129,13 +132,13 @@ public class Controller extends Node implements Heartbeat {
 
         //Request that each server shutdown
         try {
-            synchronized (chunkServerList) {
-                activeChunkServers = new CountDownLatch(chunkServerList.size());
+            synchronized (clusterHandler.serverHandler) {
+                activeChunkServers = new CountDownLatch(clusterHandler.getServers().size());
                 logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
 
                 Event event = new ControllerRequestsDeregistration();
-                for (ServerData chunkServer : chunkServerList) {
-                    sendMessage(chunkServer.socket, event);
+                for (ServerMetadata smd : clusterHandler.getServers()) {
+                    sendMessage(smd.socket, event);
                 }
 
             }
@@ -143,44 +146,41 @@ public class Controller extends Node implements Heartbeat {
             logger.debug("All servers have responded, exiting");
         } catch (InterruptedException e) {
             e.printStackTrace();
-        } catch (NullPointerException ne) {
-            synchronized (chunkServerList) {
-                logger.debug("Size: " + chunkServerList.size());
-                for (ServerData chunkServer : chunkServerList) {
-                    logger.debug(chunkServer);
-                }
-            }
         }
     }
 
     @Override
     public void onEvent(Event e, Socket socket) {
-        switch (e.getType()) {
-            // ChunkServer -> Controller
-            case CHUNK_SERVER_REQUESTS_REGISTRATION:
-                chunkServerRegistration(e, socket);
-                break;
-            case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
-                deregistrationResponse(e, socket);
-                break;
-            case CHUNK_SERVER_SENDS_MINOR_HEARTBEAT:
-                break;
-            case CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT:
-                break;
-            // Client -> Controller
-            case CLIENT_REQUESTS_FILE_ADD:
-                fileAdd(e, socket);
-            case CLIENT_REQUESTS_FILE_DELETE:
-                fileDelete(e, socket);
-                break;
-            case CLIENT_REQUESTS_FILE:
-                fileGet(e, socket);
-                break;
-            case CLIENT_REQUESTS_FILE_LIST:
-                fileList(e, socket);
-                break;
-            case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
-                break;
+        try {
+            switch (e.getType()) {
+                // ChunkServer -> Controller
+                case CHUNK_SERVER_REQUESTS_REGISTRATION:
+                    chunkServerRegistration(e, socket);
+                    break;
+                case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
+                    deregistrationResponse(e, socket);
+                    break;
+                case CHUNK_SERVER_SENDS_MINOR_HEARTBEAT:
+                    break;
+                case CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT:
+                    break;
+                // Client -> Controller
+                case CLIENT_REQUESTS_FILE_ADD:
+                    fileAdd(e, socket);
+                case CLIENT_REQUESTS_FILE_DELETE:
+                    fileDelete(e, socket);
+                    break;
+                case CLIENT_REQUESTS_FILE:
+                    fileGet(e, socket);
+                    break;
+                case CLIENT_REQUESTS_FILE_LIST:
+                    fileList(e, socket);
+                    break;
+                case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
+                    break;
+            }
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
         }
 
     }
@@ -242,18 +242,20 @@ public class Controller extends Node implements Heartbeat {
     private void fileAdd(Event e, Socket socket) {
         ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
 
+        ArrayList<ServerMetadata> serverList = clusterHandler.getServers();
         ArrayList<ContactList> chunkDestinations = new ArrayList<>();
         ArrayList<String> selectedServers = new ArrayList<>();
         //for each chunk, generate a random list of servers to contact
         for (int i = 1; i <= request.getNumberOfChunks(); i++) {
 
             //Generate a random list of distinct ints from 0 to n ChunkServers, then grab k amount needed for replication
-            List<Integer> randomServerIndexes = new Random().ints(0, chunkServerList.size())
+            List<Integer> randomServerIndexes = new Random().ints(0, 4)
                     .distinct().limit(REPLICATION_FACTOR).boxed().collect(Collectors.toList());
             //convert to actual server contact details and save
+
             for (Integer serverIndex : randomServerIndexes)
-                selectedServers.add(String.format("%s:%d", chunkServerList.get(serverIndex).name,
-                        chunkServerList.get(serverIndex).port));
+                selectedServers.add(String.format("%s:%d", serverList.get(serverIndex).host,
+                        serverList.get(serverIndex).port));
             //add to the running list of chunk destinations and reset for the next chunk
             chunkDestinations.add(new ContactList(i, new ArrayList<>(selectedServers)));
             selectedServers.clear();
@@ -265,14 +267,13 @@ public class Controller extends Node implements Heartbeat {
         sendMessage(socket, response);
     }
 
-    private void deregistrationResponse(Event e, Socket socket) {
+    private void deregistrationResponse(Event e, Socket socket) throws IOException {
         ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
 
         //create the relevant object to find using the overloaded equals operator for ChunkData
         boolean removed;
-        synchronized (chunkServerList) {
-            removed = chunkServerList.remove(new ServerData(response.getName(),
-                    response.getIP(), response.getPort(), socket));
+        synchronized (clusterHandler.serverHandler) {
+            removed = clusterHandler.serverHandler.removeBySocket(socket);
         }
 
         if (removed)
@@ -287,20 +288,21 @@ public class Controller extends Node implements Heartbeat {
         activeChunkServers.countDown();
     }
 
-    private void chunkServerRegistration(Event e, Socket socket) {
+    private void chunkServerRegistration(Event e, Socket socket) throws IOException {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
-        ServerData temp = new ServerData(request.getName(), request.getIP(), request.getPort(), socket);
 
-        synchronized (chunkServerList) {
-            chunkServerList.add(temp);
-        }
+        clusterHandler.serverHandler.addServer(request.getNickname(), request.getHost(),
+                request.getPort(), socket);
+        //ServerData temp = new ServerData(request.getName(), request.getIP(), request.getPort(), socket);
 
-        logger.debug("Received Registration Request: " + temp);
+//        synchronized (chunkServerList) {
+//            chunkServerList.add(temp);
+//        }
 
+        logger.debug("Received Registration Request: " + socket);
         //TODO: respond
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
 
-        logger.debug("Responding to request on socket: " + socket.getLocalSocketAddress());
         sendMessage(socket, event);
 
     }
@@ -336,8 +338,8 @@ public class Controller extends Node implements Heartbeat {
      */
     public void showConfig() {
         System.out.println("**** NODES ****");
-        System.out.println("Nodes: " + chunkServerList.size());
-        for (ServerData server : chunkServerList)
+        System.out.println("Nodes: " + clusterHandler.getServers().size());
+        for (ServerMetadata server : clusterHandler.getServers())
             System.out.println(server);
         System.out.println(" ************* ");
     }
@@ -354,16 +356,14 @@ public class Controller extends Node implements Heartbeat {
         isActive = true;
 
         // Open a pseudo Unix environment to run a bash script that will then open more terminals
-        // running the servers, this hard-codes it to a windows enviroment at the moment
+        // running the servers, this hard-codes it to a windows environment at the moment
         try {
             ProcessBuilder pb = new ProcessBuilder("C:\\Program Files\\Git\\bin\\bash.exe",
-                    "-c", "bash ./start_chunks.sh " + port);
+                    "-c", String.format("bash ./start_chunks.sh %s %d", getHostname(), port));
             Process p = pb.start();
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        // As an alternative to the above blocking call, simply read the chunkServers file, and setup a
     }
 }

@@ -9,6 +9,6 @@ do
   [[ "$CHUNK" =~ ^#.*$ ]] && continue
 
   #start up a server
-  /git-bash.exe -li -c "java -cp target/Distributed_File_System-1.0.jar fileSystem.node.server.ChunkServer ${CHUNK[0]} $1 ${CHUNK[1]} ${CHUNK[2]}" &
+  /git-bash.exe -li -c "java -cp target/Distributed_File_System-1.0.jar fileSystem.node.server.ChunkServer $1 $2 ${CHUNK[0]} ${CHUNK[1]} ${CHUNK[2]}" &
 done < ./chunkServers
 
