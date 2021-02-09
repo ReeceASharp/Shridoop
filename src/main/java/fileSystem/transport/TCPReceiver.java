@@ -51,9 +51,7 @@ public class TCPReceiver implements Runnable {
             try {
                 //synchronize reads from a socket to make sure it's all read in chunks
                 synchronized (socketStream.socket) {
-                    //logger.debug("Blocking on: " + socket + ", Bytes: " + inStream.available());
                     event = (Event) inStream.readObject();
-                    logger.debug("\tRECEIVED EVENT: " + socketStream.socket);
                 }
                 //pass it along to the receiving node to handle
                 node.onEvent(event, socketStream.socket);
@@ -64,16 +62,14 @@ public class TCPReceiver implements Runnable {
                 logger.debug("Closing up the connection. Proper exit.");
                 cleanup();
             } catch (SocketException se) {
-                //TODO: implement logger
                 logger.error(se.getMessage() + ", " + socketStream.socket);
                 cleanup();
             } catch (IOException ioe) {
-                logger.error("IOException: Connection closed, no longer listening to: " + socketStream.socket);
+                logger.error("ERROR: Connection closed, no longer listening to: " + socketStream.socket);
                 ioe.printStackTrace();
                 cleanup();
-            } catch (NullPointerException | ClassNotFoundException ne) {
-                ne.printStackTrace();
-                cleanup();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
             }
         }
         logger.debug("Exiting TCPRECEIVER: " + socketStream.socket);

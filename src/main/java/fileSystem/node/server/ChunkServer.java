@@ -72,7 +72,7 @@ public class ChunkServer extends Node implements Heartbeat {
     /**
      * Chunk Server wants to register with the Controller after setting up, throw a message at it to check
      *
-     * @param node the ChunkServer sending the registration request
+     * @param node           The ChunkServer sending the registration request
      * @param controllerHost The hostname/IP of the ChunkServer
      * @param controllerPort The port of the ChunkServer
      * @throws IOException thrown if the socket creation fails for some reason
@@ -104,7 +104,7 @@ public class ChunkServer extends Node implements Heartbeat {
      */
     private void showConfig() {
         System.out.printf("ServerName: '%s', Path: '%s'%n" +
-                "%s%n",
+                        "%s%n",
                 nickname, homePath, server);
     }
 
@@ -135,7 +135,26 @@ public class ChunkServer extends Node implements Heartbeat {
             case CLIENT_REQUESTS_FILE_CHUNK:
                 sendFileChunk(e, socket);
                 break;
+            case CLIENT_SENDS_FILE_CHUNK:
+                fileAdd(e, socket);
+                break;
         }
+    }
+
+    private void fileAdd(Event e, Socket socket) {
+        ClientSendsFileChunk request = (ClientSendsFileChunk) e;
+
+        //save file, calculate a hash or something
+        request.getChunkData();
+
+        logger.debug(new String(request.getChunkData()));
+
+
+
+        //pass it on to the next in the list
+
+
+
     }
 
     /**

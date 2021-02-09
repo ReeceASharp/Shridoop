@@ -17,6 +17,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocols.Protocol.*;
@@ -125,7 +126,7 @@ public class Client extends Node {
             case CONTROLLER_REPORTS_CHUNK_ADD_LIST:
                 addFileToServers(e);
                 break;
-            case CONTROLLER_REPORTS_FILE_DELETE_STATUS:
+            case CONTROLLER_REPORTS_FILE_REMOVE_STATUS:
                 deleteStatus(e);
                 break;
 
@@ -142,15 +143,15 @@ public class Client extends Node {
      * @param e The event to be converted to ControllerReportsFileDeleteStatus
      */
     private void deleteStatus(Event e) {
-        ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
-
-        switch (response.getStatus()) {
-            case RESPONSE_SUCCESS:
-                break;
-            case RESPONSE_FAILURE:
-                break;
-
-        }
+        //ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
+//
+//        switch (response.getStatus()) {
+//            case RESPONSE_SUCCESS:
+//                break;
+//            case RESPONSE_FAILURE:
+//                break;
+//
+//        }
 
         commandLock.release();
     }
@@ -175,12 +176,14 @@ public class Client extends Node {
                 bytesRead = bis.read(buffer);
                 byte[] bytesToSend = new byte[bytesRead];
                 System.arraycopy(buffer, 0, bytesToSend, 0, bytesRead);
+                logger.debug(String.format("Read: %d, Byte[]: %s", bytesRead, Arrays.toString(bytesToSend)));
 
                 // Get the server at the front, the list is generated in a random order at the Controller,
                 // so there's no reason to use further randomness
                 ArrayList<String> serverList = chunk.getServersToContact();
                 String[] hostPort = serverList.get(0).split(":");
 
+                logger.debug("Contacting: "+ serverList);
                 // Remove it from the list as it's the one being contacted
                 serverList.remove(0);
 
@@ -189,13 +192,24 @@ public class Client extends Node {
                 try {
                     // Open a connection with the chunk server
                     serverSocket = new Socket(hostPort[0], Integer.parseInt(hostPort[1]));
+                    logger.debug("Opening connection to: " + serverSocket);
                 } catch (IOException unknownHostException) {
                     unknownHostException.printStackTrace();
                     continue;
                 }
 
-                ClientSendsFileChunk chunkSend = new ClientSendsFileChunk(chunk.getChunkNumber(), bytesToSend, serverList);
+                //TODO: refactor stream and listener generation to general node method
+                if (connectionHandler.getSocketStream(serverSocket) == null) {
+                    SocketStream ss = new SocketStream(serverSocket);
+                    connectionHandler.addConnection(ss);
+                    //create a listener on this new connection to listen for future requests/responses
+                    Thread receiver = new Thread(new TCPReceiver(this, ss, server));
+                    receiver.start();
+                }
 
+
+
+                ClientSendsFileChunk chunkSend = new ClientSendsFileChunk(chunk.getChunkNumber(), bytesToSend, serverList);
                 sendMessage(serverSocket, chunkSend);
             }
         } catch (IOException fileNotFoundException) {

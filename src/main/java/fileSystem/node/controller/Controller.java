@@ -229,8 +229,8 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
-        sendMessage(socket, response);
+        //Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
+        //sendMessage(socket, response);
     }
 
     /**
@@ -240,6 +240,7 @@ public class Controller extends Node implements Heartbeat {
      * @param socket
      */
     private void fileAdd(Event e, Socket socket) {
+        logger.debug("Client Requests to add file.");
         ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
 
         ArrayList<ServerMetadata> serverList = clusterHandler.getServers();
@@ -249,7 +250,7 @@ public class Controller extends Node implements Heartbeat {
         for (int i = 1; i <= request.getNumberOfChunks(); i++) {
 
             //Generate a random list of distinct ints from 0 to n ChunkServers, then grab k amount needed for replication
-            List<Integer> randomServerIndexes = new Random().ints(0, 4)
+            List<Integer> randomServerIndexes = new Random().ints(0, serverList.size())
                     .distinct().limit(REPLICATION_FACTOR).boxed().collect(Collectors.toList());
             //convert to actual server contact details and save
 
@@ -267,7 +268,7 @@ public class Controller extends Node implements Heartbeat {
         sendMessage(socket, response);
     }
 
-    private void deregistrationResponse(Event e, Socket socket) throws IOException {
+    private void deregistrationResponse(Event e, Socket socket) {
         ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
 
         //create the relevant object to find using the overloaded equals operator for ChunkData
@@ -293,16 +294,9 @@ public class Controller extends Node implements Heartbeat {
 
         clusterHandler.serverHandler.addServer(request.getNickname(), request.getHost(),
                 request.getPort(), socket);
-        //ServerData temp = new ServerData(request.getName(), request.getIP(), request.getPort(), socket);
-
-//        synchronized (chunkServerList) {
-//            chunkServerList.add(temp);
-//        }
 
         logger.debug("Received Registration Request: " + socket);
-        //TODO: respond
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
-
         sendMessage(socket, event);
 
     }

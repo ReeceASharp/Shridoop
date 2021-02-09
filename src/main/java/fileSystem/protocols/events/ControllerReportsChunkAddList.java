@@ -15,14 +15,13 @@ public class ControllerReportsChunkAddList implements Event {
     private static final int type = Protocol.CONTROLLER_REPORTS_CHUNK_ADD_LIST;
 
     private final int status;
-    private final ArrayList<ContactList> chunkDestinations;
     private final String file;
+    private final ArrayList<ContactList> chunkDestinations;
 
-    //TODO: instead pass the location on the file system the file should be, not the actual file path
     public ControllerReportsChunkAddList(int status, String file, ArrayList<ContactList> chunkDestinations) {
         this.status = status;
-        this.chunkDestinations = chunkDestinations;
         this.file = file;
+        this.chunkDestinations = chunkDestinations;
     }
 
     public String getFile() {

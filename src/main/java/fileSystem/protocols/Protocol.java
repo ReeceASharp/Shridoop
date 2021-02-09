@@ -30,7 +30,7 @@ public class Protocol {
     public static final int CONTROLLER_REPORTS_FILE_LIST = 40;
     public static final int CONTROLLER_REPORTS_CHUNK_ADD_LIST = 41;
     public static final int CONTROLLER_REPORTS_CHUNK_GET_LIST = 42;
-    public static final int CONTROLLER_REPORTS_FILE_DELETE_STATUS = 43;
+    public static final int CONTROLLER_REPORTS_FILE_REMOVE_STATUS = 43;
     public static final int CONTROLLER_REPORTS_CHUNK_SERVER_METADATA = 44;
 
 

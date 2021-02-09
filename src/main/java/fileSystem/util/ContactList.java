@@ -24,6 +24,14 @@ public class ContactList implements Serializable {
         return chunkNumber;
     }
 
+    @Override
+    public String toString() {
+        return "ContactList{" +
+                "chunkNumber=" + chunkNumber +
+                ", serversToContact=" + serversToContact +
+                '}';
+    }
+
     /**
      * Returns a list of servers that contain/will contain this chunk
      * Note: The string needs to be separated, as it's in the form of "[HOST]:[PORT]"
