@@ -7,13 +7,15 @@ import org.apache.logging.log4j.Logger;
 import java.util.Arrays;
 import java.util.Scanner;
 
-import static fileSystem.util.ConsoleConstant.*;
-
 /*
 Constructed by the relevant node, and allows commands to be entered there
 Valid nodes: Client, Controller, ChunkServer
  */
 public class ConsoleParser implements Runnable {
+    public static final int CONSOLE_INTRO = 1;
+    public static final int CONSOLE_HELP = 2;
+    public static final int CONSOLE_COMMANDS = 3;
+
     private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
     private static final String[] basicCommands = {"commands", "help", "quit"};
     private final Node node;

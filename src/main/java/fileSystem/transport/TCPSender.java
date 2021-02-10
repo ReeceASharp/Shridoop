@@ -1,7 +1,7 @@
 package fileSystem.transport;
 
-import fileSystem.node.controller.Controller;
-import fileSystem.protocols.Event;
+import fileSystem.node.Controller;
+import fileSystem.protocol.Event;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

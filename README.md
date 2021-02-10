@@ -37,7 +37,7 @@ a few third party packages.
 1. Clone the Repository
 2. Run 'maven compile jar' to compile and bundle into a fat jar
 3. Edit 'chunkServers' with the # of ChunkServers wanted. File format: '[Nickname] [Port] [dynamicPath]'
-3. 'java -cp /target/Distributed_File_System-1.0.jar fileSystem.node.controller.Controller [PORT]' 
+3. 'java -cp /target/Distributed_File_System-1.0.jar fileSystem.node.Controller [PORT]' 
 <br><br>
 
 **Linux**

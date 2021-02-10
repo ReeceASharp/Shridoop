@@ -1,10 +1,9 @@
 package fileSystem.util;
 
-import fileSystem.node.Heartbeat;
 import fileSystem.node.Node;
-import fileSystem.node.controller.Controller;
-import fileSystem.node.server.ChunkServer;
-import fileSystem.protocols.Protocol;
+import fileSystem.node.Controller;
+import fileSystem.node.ChunkServer;
+import fileSystem.protocol.Protocol;
 
 import java.util.Timer;
 import java.util.TimerTask;

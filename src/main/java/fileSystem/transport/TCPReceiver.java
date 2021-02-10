@@ -1,12 +1,11 @@
 package fileSystem.transport;
 
 import fileSystem.node.Node;
-import fileSystem.protocols.Event;
+import fileSystem.protocol.Event;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
-import java.net.Socket;
 import java.net.SocketException;
 
 /*

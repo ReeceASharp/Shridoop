@@ -1,7 +1,5 @@
 package fileSystem.transport;
 
-import fileSystem.metadata.ServerMetadata;
-
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -35,6 +33,15 @@ public class ConnectionHandler {
 
     public SocketStream getSocketStream(Socket socket) {
         Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.socket.equals(socket)).findFirst();
+        return server.orElse(null);
+    }
+
+    public SocketStream getSocketStream(int index) {
+        return connections.get(index);
+    }
+
+    public SocketStream getSocketStream(String hostPort) {
+        Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.hostPort.equals(hostPort)).findFirst();
         return server.orElse(null);
     }
 

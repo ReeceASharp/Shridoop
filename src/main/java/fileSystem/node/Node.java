@@ -1,6 +1,6 @@
 package fileSystem.node;
 
-import fileSystem.protocols.Event;
+import fileSystem.protocol.Event;
 import fileSystem.transport.ConnectionHandler;
 import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPSender;
@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
-import static fileSystem.util.ConsoleConstant.*;
+import static fileSystem.util.ConsoleParser.*;
 
 /**
  * Abstraction of a node, which each part of the system is build upon

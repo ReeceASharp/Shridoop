@@ -18,21 +18,10 @@ public class TCPServer implements Runnable {
     private static final Logger logger = LogManager.getLogger(TCPServer.class);
 
     private final ArrayList<TCPReceiver> currentConnections;
-
-    @Override
-    public String toString() {
-        return "TCPServer{" +
-                "currentConnections=" + currentConnections +
-                ", port=" + port +
-                ", serverSocket=" + serverSocket +
-                '}';
-    }
-
     private final Node node;
     private final int port;
     private final Semaphore setupLock;
     private ServerSocket serverSocket;
-
     // Constructor that is used if a certain port must be used for the server
     public TCPServer(Node node, int port, Semaphore setupLock) {
         this.node = node;
@@ -49,6 +38,15 @@ public class TCPServer implements Runnable {
             e.printStackTrace();
         }
 
+    }
+
+    @Override
+    public String toString() {
+        return "TCPServer{" +
+                "currentConnections=" + currentConnections +
+                ", port=" + port +
+                ", serverSocket=" + serverSocket +
+                '}';
     }
 
     @Override
