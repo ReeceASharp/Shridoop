@@ -23,7 +23,7 @@ public class FileHandler {
     }
 
 
-    public byte[] getFileData(String file) {
+    public synchronized byte[] getFileData(String file) {
 
 
         Path absolutePath = resolveFileName(file);
@@ -58,7 +58,7 @@ public class FileHandler {
         return resolvedPath.toAbsolutePath();
     }
 
-    public void storeFileChunk(String path, byte[] chunkData, String fileHash) {
+    public synchronized void storeFileChunk(String path, byte[] chunkData, String fileHash) {
         //output to
 
         Path localPath = Paths.get(path);
@@ -82,7 +82,7 @@ public class FileHandler {
 
     }
 
-    public ArrayList<FileChunkData> getFileChunks() {
+    public synchronized ArrayList<FileChunkData> getFileChunks() {
         return fileChunks;
     }
 }

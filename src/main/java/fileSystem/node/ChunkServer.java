@@ -12,6 +12,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
@@ -36,7 +38,7 @@ public class ChunkServer extends Node implements Heartbeat {
         this.fileHandler = new FileHandler(homePath);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         final String controllerHost = args[0];
         final int controllerPort = Integer.parseInt(args[1]);
         final int listenPort = Integer.parseInt(args[2]);
@@ -49,7 +51,7 @@ public class ChunkServer extends Node implements Heartbeat {
 
         //get an object reference to be able to call functions and organize control flow
         ChunkServer server = new ChunkServer(nickname, homePath);
-
+        server.configure(homePath);
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
         setupLock.tryAcquire();
@@ -62,10 +64,15 @@ public class ChunkServer extends Node implements Heartbeat {
 
         try {
             setupLock.acquire();
-            sendRegistration(server, controllerHost, controllerPort);
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        sendRegistration(server, controllerHost, controllerPort);
+    }
+
+    private void configure(String homePath) throws IOException {
+        Files.createDirectories(Paths.get(homePath));
     }
 
     /**
@@ -141,6 +148,12 @@ public class ChunkServer extends Node implements Heartbeat {
         }
     }
 
+    /**
+     * Handles the adding of a file, called either from a Client node, or from another ChunkServer
+     * requesting a replication
+     * @param e  Base event passed in, is actually NodeSendsFileChunk with respective request values
+     * @param socket  The socket the event came in on
+     */
     private void fileAdd(Event e, Socket socket) {
         NodeSendsFileChunk request = (NodeSendsFileChunk) e;
 
@@ -160,8 +173,10 @@ public class ChunkServer extends Node implements Heartbeat {
         //update the contact details
 
         ArrayList<String> serversToContact = request.getServersToContact();
-        if (serversToContact.isEmpty())
+        if (serversToContact.isEmpty()) {
+            logger.debug("Ending.");
             return;
+        }
 
         String hostPort = serversToContact.get(0);
         serversToContact.remove(0);
@@ -169,6 +184,7 @@ public class ChunkServer extends Node implements Heartbeat {
         // Check if there is already a connection
         SocketStream socketStream = connectionHandler.getSocketStream(hostPort);
         if (socketStream == null) {
+            logger.debug("Generating new Connection.");
             try {
                 String[] tokens = hostPort.split(":");
                 // Open a connection with the chunk server

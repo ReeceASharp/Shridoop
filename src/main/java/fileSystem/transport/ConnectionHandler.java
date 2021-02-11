@@ -23,24 +23,24 @@ public class ConnectionHandler {
                 '}';
     }
 
-    public void addConnection(SocketStream ss) {
+    public synchronized void addConnection(SocketStream ss) {
         connections.add(ss);
     }
 
-    public void removeConnection(Socket socket) {
+    public synchronized void removeConnection(Socket socket) {
         connections.remove(getSocketStream(socket));
     }
 
-    public SocketStream getSocketStream(Socket socket) {
+    public synchronized SocketStream getSocketStream(Socket socket) {
         Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.socket.equals(socket)).findFirst();
         return server.orElse(null);
     }
 
-    public SocketStream getSocketStream(int index) {
+    public synchronized SocketStream getSocketStream(int index) {
         return connections.get(index);
     }
 
-    public SocketStream getSocketStream(String hostPort) {
+    public synchronized SocketStream getSocketStream(String hostPort) {
         Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.hostPort.equals(hostPort)).findFirst();
         return server.orElse(null);
     }

@@ -16,7 +16,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocol.Protocol.*;
 
@@ -24,7 +23,6 @@ public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
 
     final String[] commandList = {"add", "delete", "get", "list-files"};
-    private final Semaphore commandLock;
     private final String controllerHost;
     private final int controllerPort;
     //Temporary, until I figure out a better solution
@@ -35,7 +33,6 @@ public class Client extends Node {
     public Client(String host, int port) {
         this.controllerHost = host;
         this.controllerPort = port;
-        this.commandLock = new Semaphore(1);
     }
 
 
@@ -85,8 +82,6 @@ public class Client extends Node {
 
     private void request(Event event) {
         try {
-            //grab a lock
-            commandLock.acquire();
             if (controllerSocket == null) {
 
                 controllerSocket = new Socket(controllerHost, controllerPort);
@@ -97,15 +92,12 @@ public class Client extends Node {
                 Thread receiver = new Thread(new TCPReceiver(this, ss, server));
                 receiver.start();
             }
-
+            logger.debug("Sending request");
             //send it off to the Controller to respond
             sendMessage(controllerSocket, event);
 
-            //block on message send, release on successful message response
-            //Note: this could have problems if the response never comes for some reason
-            commandLock.acquire();
 
-        } catch (InterruptedException | IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -149,12 +141,11 @@ public class Client extends Node {
 //                break;
 //
 //        }
-
-        commandLock.release();
     }
 
     private void addFileToServers(Event e) {
         ControllerReportsChunkAddList response = (ControllerReportsChunkAddList) e;
+        logger.debug("Received List, Sending data to clients.");
 
         // Setup file input streams to handle the chunk creation of the file,
         // use try-with-resource to simplify the closing/cleanup of the input streams
@@ -212,17 +203,12 @@ public class Client extends Node {
         } catch (IOException fileNotFoundException) {
             fileNotFoundException.printStackTrace();
         }
-
-
-        commandLock.release();
     }
 
     private void getFileFromServers(Event e) {
         ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
 
         //TODO: handle logic of querying the ChunkServers
-
-        commandLock.release();
     }
 
     private void displayFiles(Event e) {
@@ -237,8 +223,6 @@ public class Client extends Node {
         } else if (response.getStatus() == RESPONSE_FAILURE) {
             System.out.println("Failure to handle list query.");
         }
-        //Now that command passed, release
-        commandLock.release();
     }
 
     @Override
