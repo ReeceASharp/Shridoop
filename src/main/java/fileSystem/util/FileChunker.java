@@ -1,9 +1,8 @@
 package fileSystem.util;
 
-import java.io.*;
+import java.io.File;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Formatter;
 
 /**
@@ -14,18 +13,8 @@ public class FileChunker {
     public static final int CHUNK_SIZE = 65536;  // 1024 * 64
 
     public static int getChunkNumber(String file) {
-
-        long chunkNumber = 0;
-        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
-            long fileLength = raf.length();
-            chunkNumber = fileLength / CHUNK_SIZE + fileLength % CHUNK_SIZE != 0 ? 1 : 0;
-
-
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-
-        return (int) chunkNumber;
+        long fileLength = getFileSize(file);
+        return (int) (fileLength / CHUNK_SIZE) + (fileLength % CHUNK_SIZE != 0 ? 1 : 0);
     }
 
 
@@ -33,7 +22,7 @@ public class FileChunker {
         return new File(localFilePath).length();
     }
 
-    public static String getChunkHash(byte[] chunkData)  {
+    public static String getChunkHash(byte[] chunkData) {
         MessageDigest md = null;
         try {
             md = MessageDigest.getInstance("SHA-1");

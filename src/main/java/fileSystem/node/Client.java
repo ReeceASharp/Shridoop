@@ -16,7 +16,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocol.Protocol.*;
@@ -41,8 +40,6 @@ public class Client extends Node {
 
 
     public static void main(String[] args) {
-        //TODO: parse inputs and setup TCP connection
-
         String host = args[0];
         int port = Integer.parseInt(args[1]);
 
@@ -55,7 +52,7 @@ public class Client extends Node {
         //Console parser
         Thread console = new Thread(new ConsoleParser(client));
         console.start();
-
+        System.out.println("Working Directory = " + System.getProperty("user.dir"));
     }
 
     @Override
@@ -176,7 +173,7 @@ public class Client extends Node {
                 bytesRead = bis.read(buffer);
                 byte[] bytesToSend = new byte[bytesRead];
                 System.arraycopy(buffer, 0, bytesToSend, 0, bytesRead);
-                logger.debug(String.format("Read: %d, Byte[]: %s", bytesRead, Arrays.toString(bytesToSend)));
+                logger.debug(String.format("Bytes Read: %d", bytesRead));
 
                 //calculate initial hash, so it can be verified upon reaching its destination
                 String shaHash = FileChunker.getChunkHash(bytesToSend);
@@ -202,10 +199,9 @@ public class Client extends Node {
                         Thread receiver = new Thread(new TCPReceiver(this, socketStream, server));
                         receiver.start();
 
-                        logger.debug("Opening connection to: " + socketStream);
+                        //logger.debug("Opening connection to: " + socketStream);
                     } catch (IOException unknownHostException) {
                         unknownHostException.printStackTrace();
-                        continue;
                     }
                 }
 
@@ -232,7 +228,6 @@ public class Client extends Node {
     private void displayFiles(Event e) {
         ControllerReportsFileList response = (ControllerReportsFileList) e;
 
-        //TODO: get a list of files, display formatted information
         if (response.getStatus() == RESPONSE_SUCCESS) {
             System.out.println("**** Files **** ");
             for (String file : response.getFiles()) {

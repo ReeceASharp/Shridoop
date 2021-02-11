@@ -1,4 +1,4 @@
-package fileSystem.util;
+package fileSystem.util.metadata;
 
 import java.nio.file.Path;
 import java.time.Instant;

@@ -1,5 +1,7 @@
 package fileSystem.util;
 
+import fileSystem.util.metadata.FileChunkData;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,6 +24,8 @@ public class FileHandler {
 
 
     public byte[] getFileData(String file) {
+
+
         Path absolutePath = resolveFileName(file);
         byte[] fileData = null;
         try {
@@ -33,9 +37,20 @@ public class FileHandler {
     }
 
     /**
-     * Resolves the passed fileName with the current home directory of this Handler, and gets the full
+     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
      * pathname of requested file
      *
+     * @return
+     */
+    private Path resolveFileName(Path localPath) {
+        Path resolvedPath = homePath.resolve(localPath);
+        return resolvedPath.toAbsolutePath();
+    }
+
+    /**
+     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
+     * pathname of requested file
+     * @param localPath
      * @return
      */
     private Path resolveFileName(String localPath) {
@@ -43,12 +58,17 @@ public class FileHandler {
         return resolvedPath.toAbsolutePath();
     }
 
-    public void storeFileChunk(String path, byte[] chunkData) {
+    public void storeFileChunk(String path, byte[] chunkData, String fileHash) {
+        //output to
+
+        Path localPath = Paths.get(path);
+        fileChunks.add(new FileChunkData(localPath, 1, fileHash));
+
         //use full path to store data
-        Path fullPath = resolveFileName(path);
+        Path fullPath = resolveFileName(localPath);
 
+        //create a file using the full path to output to
         File file = new File(fullPath.toString());
-
         try (OutputStream os = new FileOutputStream(file)) {
             os.write(chunkData);
             os.flush();
@@ -62,4 +82,7 @@ public class FileHandler {
 
     }
 
+    public ArrayList<FileChunkData> getFileChunks() {
+        return fileChunks;
+    }
 }

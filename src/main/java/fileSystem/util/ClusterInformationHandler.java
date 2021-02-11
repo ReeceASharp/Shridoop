@@ -1,5 +1,8 @@
 package fileSystem.util;
 
+import fileSystem.util.metadata.FileMetadata;
+import fileSystem.util.metadata.ServerMetadata;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.time.Instant;
@@ -34,6 +37,10 @@ public class ClusterInformationHandler {
     private final ArrayList<ServerMetadata> currentServers;
     private final ArrayList<FileMetadata> currentFiles;
 
+    public ArrayList<FileMetadata> getFiles() {
+        return currentFiles;
+    }
+
     public ClusterInformationHandler() {
         currentServers = new ArrayList<>();
         currentFiles = new ArrayList<>();
@@ -54,7 +61,6 @@ public class ClusterInformationHandler {
 
     /**
      * Attempting to use java streams to find the relevant server based on known connection
-     * TODO: FIX
      *
      * @param socket
      * @return
@@ -66,23 +72,6 @@ public class ClusterInformationHandler {
 
     public synchronized boolean removeBySocket(Socket socket) {
         return currentServers.remove(getServer(socket));
-    }
-
-    /**
-     * Contains all relevant metadata for a file in the distributed filesystem
-     */
-    private class FileMetadata {
-        String fileName;
-        int numberOfChunks;
-        long fileSize;
-        ArrayList<ChunkMetadata> chunkList;
-
-        public FileMetadata(String fileName, int numberOfChunks, long fileSize) {
-            this.fileName = fileName;
-            this.numberOfChunks = numberOfChunks;
-            this.fileSize = fileSize;
-            chunkList = new ArrayList<>(numberOfChunks);
-        }
     }
 
 }

@@ -1,4 +1,4 @@
-package fileSystem.util;
+package fileSystem.util.metadata;
 
 import java.io.IOException;
 import java.net.Socket;

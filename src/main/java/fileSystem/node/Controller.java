@@ -1,14 +1,11 @@
 package fileSystem.node;
 
-import fileSystem.util.ClusterInformationHandler;
-import fileSystem.util.ServerMetadata;
+import fileSystem.util.*;
 import fileSystem.protocol.Event;
 import fileSystem.protocol.events.*;
 import fileSystem.transport.TCPServer;
-import fileSystem.util.ConsoleParser;
-import fileSystem.util.ContactList;
-import fileSystem.util.HeartbeatHandler;
-import fileSystem.util.LogConfiguration;
+import fileSystem.util.metadata.FileMetadata;
+import fileSystem.util.metadata.ServerMetadata;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -29,7 +26,7 @@ public class Controller extends Node implements Heartbeat {
 
     //properties
     private static final int REPLICATION_FACTOR = 3;
-    private static final String[] commandList = {"list-nodes", "list-files", "init", "stop", "display-config"};
+    private static final String[] commandList = {"files", "init", "stop", "config"};
     private final int port;
     private final ClusterInformationHandler clusterHandler;
 
@@ -50,7 +47,7 @@ public class Controller extends Node implements Heartbeat {
 
         // Inputs (Eventually)
         boolean DEBUG = true;
-        int port = 5000;
+        int port = Integer.parseInt(args[0]);
 
         //setup debug mode logging if parameter was passed
         if (DEBUG)
@@ -98,11 +95,8 @@ public class Controller extends Node implements Heartbeat {
     public boolean handleCommand(String input) {
         boolean isValid = true;
         switch (input) {
-            case "list-nodes":
-                //TODO
-                break;
-            case "list-files":
-                //TODO
+            case "files":
+                listClusterFiles();
                 break;
             case "init":
             case "initialize":
@@ -111,13 +105,21 @@ public class Controller extends Node implements Heartbeat {
             case "stop":
                 stopChunkServers();
                 break;
-            case "display-config":
+            case "config":
                 showConfig();
                 break;
             default:
                 isValid = false;
         }
         return isValid;
+    }
+
+    private void listClusterFiles() {
+        System.out.println("********************");
+
+        for (FileMetadata fmd : clusterHandler.getFiles())
+            System.out.println(fmd);
+
     }
 
     private void stopChunkServers() {
@@ -187,12 +189,15 @@ public class Controller extends Node implements Heartbeat {
 
 
     private void updateMinorbeat(Event e, Socket socket) {
-
+        ChunkServerSendsMinorHeartbeat heartbeat = (ChunkServerSendsMinorHeartbeat) e;
 
     }
 
 
     private void updateMajorbeat(Event e, Socket socket) {
+        ChunkServerSendsMajorHeartbeat heartbeat = (ChunkServerSendsMajorHeartbeat) e;
+
+
 
     }
 
@@ -251,8 +256,9 @@ public class Controller extends Node implements Heartbeat {
      * @param socket
      */
     private void fileAdd(Event e, Socket socket) {
-        logger.debug("Client Requests to add file.");
         ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
+        logger.debug(String.format("Client Requests to add file: %s, Size: %d, Chunks: %d", request.getFile(),
+                request.getFileSize(), request.getNumberOfChunks()));
 
         ArrayList<ServerMetadata> serverList = clusterHandler.getServers();
         ArrayList<ContactList> chunkDestinations = new ArrayList<>();

@@ -5,9 +5,8 @@ import fileSystem.protocol.events.*;
 import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
-import fileSystem.util.ConsoleParser;
-import fileSystem.util.FileChunker;
-import fileSystem.util.FileHandler;
+import fileSystem.util.*;
+import fileSystem.util.metadata.FileChunkData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -145,23 +144,24 @@ public class ChunkServer extends Node implements Heartbeat {
     private void fileAdd(Event e, Socket socket) {
         NodeSendsFileChunk request = (NodeSendsFileChunk) e;
 
-        //TODO: confirm file integrity
-        if (request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
+        if (!request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
             logger.error("SHA HASH DOES NOT MATCH PREVIOUS STAGE.");
             //TODO: possibly exit method early and send a request back to the node for another file
             // in which case this will be started again
+
         }
 
+        System.out.println(String.format("Received new chunk: %s, %d bytes", request.getFileName(),
+                request.getChunkData().length));
         String fileName = request.getFileName() + request.getChunkNumber();
         //store the file in the local directory for the ChunkServer
-        fileHandler.storeFileChunk(fileName, request.getChunkData());
+        fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
 
         //update the contact details
 
         ArrayList<String> serversToContact = request.getServersToContact();
         if (serversToContact.isEmpty())
             return;
-        logger.debug("Contacting: " + serversToContact);
 
         String hostPort = serversToContact.get(0);
         serversToContact.remove(0);
@@ -178,7 +178,7 @@ public class ChunkServer extends Node implements Heartbeat {
                 Thread receiver = new Thread(new TCPReceiver(this, socketStream, server));
                 receiver.start();
 
-                logger.debug("Opening connection to: " + socketStream);
+                //logger.debug("Opening connection to: " + socketStream);
             } catch (IOException unknownHostException) {
                 unknownHostException.printStackTrace();
             }
@@ -253,6 +253,7 @@ public class ChunkServer extends Node implements Heartbeat {
         boolean isValid = true;
         switch (input) {
             case "list-files":
+                listChunks();
                 break;
             case "config":
                 showConfig();
@@ -261,6 +262,15 @@ public class ChunkServer extends Node implements Heartbeat {
                 isValid = false;
         }
         return isValid;
+    }
+
+    private void listChunks() {
+        System.out.println("Home path: " + homePath);
+        System.out.println("***********************");
+        for (FileChunkData smd : fileHandler.getFileChunks()) {
+            System.out.println(smd);
+        }
+        System.out.println("***********************");
     }
 
     @Override

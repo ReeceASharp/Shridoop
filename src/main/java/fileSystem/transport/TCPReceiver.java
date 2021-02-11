@@ -45,7 +45,7 @@ public class TCPReceiver implements Runnable {
             e.printStackTrace();
         }
 
-        logger.debug("LISTENING ON: " + socketStream);
+        //logger.debug("LISTENING ON: " + socketStream);
         while (!socketStream.socket.isClosed()) {
             try {
                 //synchronize reads from a socket to make sure it's all read in chunks
