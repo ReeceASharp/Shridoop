@@ -157,18 +157,31 @@ public class ChunkServer extends Node implements Heartbeat {
     private void fileAdd(Event e, Socket socket) {
         NodeSendsFileChunk request = (NodeSendsFileChunk) e;
 
+        //check that the data received is correct
         if (!request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
             logger.error("SHA HASH DOES NOT MATCH PREVIOUS STAGE.");
             //TODO: possibly exit method early and send a request back to the node for another file
             // in which case this will be started again
 
         }
-
         System.out.println(String.format("Received new chunk: %s, %d bytes", request.getFileName(),
                 request.getChunkData().length));
-        String fileName = request.getFileName() + request.getChunkNumber();
+
+
         //store the file in the local directory for the ChunkServer
-        fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
+        String fileName = request.getFileName() + request.getChunkNumber();
+
+        //TODO: Check for that the given resolved path is valid
+
+
+
+        try {
+            fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+            //TODO: Handle failure of file save
+            return;
+        }
 
         //update the contact details
 

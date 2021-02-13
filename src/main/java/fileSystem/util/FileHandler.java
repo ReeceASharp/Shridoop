@@ -58,14 +58,17 @@ public class FileHandler {
         return resolvedPath.toAbsolutePath();
     }
 
-    public synchronized void storeFileChunk(String path, byte[] chunkData, String fileHash) {
-        //output to
+    public synchronized void storeFileChunk(String path, byte[] chunkData, String fileHash) throws IOException {
 
+
+        //Add fileMetadata to memory
         Path localPath = Paths.get(path);
         fileChunks.add(new FileChunkData(localPath, 1, fileHash));
 
-        //use full path to store data
+        //Get full path to properly save file data
         Path fullPath = resolveFileName(localPath);
+
+        Files.createDirectories(fullPath);
 
         //create a file using the full path to output to
         File file = new File(fullPath.toString());
@@ -81,6 +84,45 @@ public class FileHandler {
         //TODO: generate slices + SHA1 values
 
     }
+
+    public synchronized boolean createDirectory(String localPath) {
+        Path resolvedPath = resolveFileName(localPath);
+
+        boolean isValidPath = checkPath(resolvedPath);
+
+        boolean created;
+        File resolvedDirectory = new File(resolvedPath.getParent().toString());
+        if (isValidPath)
+
+
+        //edge case issue with checkPath
+        if (new File)
+
+    }
+
+    /**
+     * Checks to see if the resolved path given (HomePath + local path) is empty, or is already a directory
+     * One potential issue is that this doesn't take into account the case where a part of the path is a filename
+     * and not just the parent folder.
+     * @param resolvedPath
+     * @return
+     */
+    private synchronized boolean checkPath(Path resolvedPath) {
+        File resolvedFile = new File(resolvedPath.toString());
+        if (resolvedFile.exists())
+            return false;
+
+        File resolvedDirectory = new File(resolvedFile.getParent());
+        if (resolvedDirectory.isFile())
+            return false;
+
+        //TODO: fix case where a local file part of a path: /FOLDER/FILE/FOLDER/FOLDER
+
+        return true;
+    }
+
+
+
 
     public synchronized ArrayList<FileChunkData> getFileChunks() {
         return fileChunks;
