@@ -6,16 +6,16 @@
 # I don't have access to a cluster, so this will simulate it locally
 
 # Controller
-/git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.controller.Controller" &
+/git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.Controller" &
 
 # Chunk Servers
 CHUNK_SERVERS=3
 for (( i = 0; i < CHUNK_SERVERS; i++ )); do
-    /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.server.ChunkServer" &
+    /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.ChunkServer" &
 done
 
 # Client(s)
 CLIENTS=1
 for (( i = 0; i < CLIENTS; i++ )); do
-    /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.client.Client" &
+    /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.Client" &
 done
