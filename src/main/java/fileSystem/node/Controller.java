@@ -13,20 +13,18 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import static fileSystem.protocol.Protocol.*;
+import static fileSystem.util.Utils.appendLn;
 
 public class Controller extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
     //properties
     private static final int REPLICATION_FACTOR = 3;
-    private static final String[] commandList = {"files", "init", "stop", "config"};
     private final int port;
     private final ClusterInformationHandler clusterHandler;
 
@@ -91,62 +89,42 @@ public class Controller extends Node implements Heartbeat {
         timer = new HeartbeatHandler(5, 9, this);
     }
 
-    @Override
-    public boolean handleCommand(String input) {
-        boolean isValid = true;
-        switch (input) {
-            case "files":
-                listClusterFiles();
-                break;
-            case "init":
-            case "initialize":
-                initialize();
-                break;
-            case "stop":
-                stopChunkServers();
-                break;
-            case "config":
-                showConfig();
-                break;
-            default:
-                isValid = false;
-        }
-        return isValid;
-    }
-
-    private void listClusterFiles() {
-        System.out.println("********************");
+    private String listClusterFiles() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("********************");
 
         for (FileMetadata fmd : clusterHandler.getFiles())
-            System.out.println(fmd);
+            sb.append(fmd);
 
+        return sb.toString();
     }
 
-    private void stopChunkServers() {
+    private String stopChunkServers() {
         if (!isActive) {
-            System.out.println("Cluster isn't currently active");
-            return;
+            return "Cluster isn't currently active";
         }
         isActive = false;
         timer.stop();
 
         //Request that each server shutdown
+        String response;
         try {
             synchronized (clusterHandler.getServers()) {
                 activeChunkServers = new CountDownLatch(clusterHandler.getServers().size());
                 logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
 
                 Event event = new ControllerRequestsDeregistration();
-                for (ServerMetadata smd : clusterHandler.getServers()) {
+                for (ServerMetadata smd : clusterHandler.getServers())
                     sendMessage(smd.socket, event);
-                }
-
             }
             activeChunkServers.await();
-            logger.debug("All servers have responded, exiting");
+            response = "All servers have responded, exiting";
         } catch (InterruptedException e) {
             e.printStackTrace();
+            response = "Error. Server shutdown Failed.";
         }
+
+        return response;
     }
 
     @Override
@@ -334,39 +312,49 @@ public class Controller extends Node implements Heartbeat {
     }
 
     @Override
-    public String[] commands() {
-        return commandList;
-    }
-
-    @Override
     public void cleanup() {
         if (isActive)
             stopChunkServers();
         server.cleanup();
     }
 
+    @Override
+    public Map<String, Command> getCommandMap() {
+        Map<String, Command> commandMap = new HashMap<>();
+        commandMap.put("files", userInput -> listClusterFiles());
+        commandMap.put("initialize", userInput -> initialize());
+        commandMap.put("stop", userInput -> stopChunkServers());
+        commandMap.put("config", userInput -> showConfig());
+        return commandMap;
+    }
+
+
     /**
      * Returns all information currently loaded in regarding the configuration of the cluster
      */
-    public void showConfig() {
-        System.out.println("**** NODES ****");
-        System.out.println("Nodes: " + clusterHandler.getServers().size());
+    public String showConfig() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, "**** NODES ****");
+        appendLn(sb, String.format("Nodes: %d", clusterHandler.getServers().size()));
         for (ServerMetadata server : clusterHandler.getServers())
-            System.out.println(server);
-        System.out.println(" ************* ");
+            appendLn(sb, server.toString());
+        appendLn(sb, " ************* ");
+
+        return sb.toString();
     }
 
     /**
      * Send out a command to each server and start a chunkServer there. Currently, this is
      * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
      */
-    private void initialize() {
-        if (isActive) {
-            System.out.println("Already active.");
-            return;
-        }
+    private String initialize() {
+        if (isActive)
+            return "Already active.";
         isActive = true;
+        return "System is activated.";
 
+
+        /*
         // Open a pseudo Unix environment to run a bash script that will then open more terminals
         // running the servers, this hard-codes it to a windows environment at the moment
         try {
@@ -377,5 +365,6 @@ public class Controller extends Node implements Heartbeat {
         } catch (Exception e) {
             e.printStackTrace();
         }
+         */
     }
 }

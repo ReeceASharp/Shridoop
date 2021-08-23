@@ -7,8 +7,9 @@ import org.apache.logging.log4j.Logger;
 //import org.apache.commons.text.WordUtils;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
-import java.util.stream.Stream;
 
 /*
 Used by an implementation of a Node to give functionality for entering commands
@@ -16,18 +17,17 @@ Used by an implementation of a Node to give functionality for entering commands
 public class ConsoleParser implements Runnable {
     private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
 
-    private String[] commands = {"commands", "help", "quit"};
-
+    private final Map<String, Command> commandMap = new HashMap<>();
 
     private final Node node;
     private final Scanner userInput;
 
+
     public ConsoleParser(Node node) {
         this.node = node;
-        // Concatenate the known commands
-        this.setup();
-
         this.userInput = new Scanner(System.in);
+
+        this.setup();
     }
 
     @Override
@@ -49,38 +49,38 @@ public class ConsoleParser implements Runnable {
             String input = userInput.nextLine();
 
 
-            // TODO: Rewrite logic to dump input into function
-            if (Arrays.stream(this.commands).anyMatch(input.toLowerCase()::equals)) {
+            // TODO: Rewrite logic to use commandMap
+            //if (Arrays.stream(this.commands).anyMatch(input.toLowerCase()::equals)) {
+            //
+            //}
 
-            }
 
-
-            String response = null;
-            switch (input.toLowerCase()) {
-                case "commands":
-                    response = Arrays.toString(this.commands);
-                    break;
-                case "help":
-                    response = node.help();
-                    break;
-                case "quit":
-                    response = null;
-                    break;
-                default:
-                    try {
-                        if (!node.handleCommand(input))
-                            response = "ERROR: Invalid input. Enter 'help' for available commands.";
-                    } catch (NullPointerException ne) {
-                        //Can be thrown inside Client 'add' command
-                        //executes on File not found when requesting it be added to the
-                        System.out.print("File not found.");
-                    }
-            }
-
-            if (response != null)
-                System.out.println(response);
-            else
-                return;
+            //String response = null;
+            //switch (input.toLowerCase()) {
+            //    case "commands":
+            //        //response = Arrays.toString(this.commands);
+            //        break;
+            //    case "help":
+            //        //response = node.help();
+            //        break;
+            //    case "quit":
+            //        //response = null;
+            //        break;
+            //    default:
+            //        try {
+            //            if (!node.handleCommand(input))
+            //                response = "ERROR: Invalid input. Enter 'help' for available commands.";
+            //        } catch (NullPointerException ne) {
+            //            //Can be thrown inside Client 'add' command
+            //            //executes on File not found when requesting it be added to the
+            //            System.out.print("File not found.");
+            //        }
+            //}
+            //
+            //if (response != null)
+            //    System.out.println(response);
+            //else
+            //    return;
         }
     }
 
@@ -89,19 +89,16 @@ public class ConsoleParser implements Runnable {
     }
 
     private void resolveCommands() {
-        this.commands = Stream.concat(Arrays.stream(commands), Arrays.stream(this.node.commands())).toArray(String[]::new);
+
+        this.commandMap.put("commands", userInput -> this.commandMap.keySet().toString());
+        this.commandMap.put("help", userInput -> this.node.help());
+        this.commandMap.put("quit", userInput -> null);
+
+        // Get the node specific commands, and their mappings
+        this.commandMap.putAll(this.node.getCommandMap());
+
+
+        //this.commands = Stream.concat(Arrays.stream(commands), Arrays.stream(this.node.commands())).toArray(String[]::new);
     }
 
-    //private String resolveCommands() {
-    //    String[][] commands;
-    //
-    //    // Console Commands for Controller Node
-    //    //commands[0] = node.getConsoleText(CONSOLE_COMMANDS);
-    //
-    //
-    //}
-
-    //private String arraysToString(String[] arrayOne, ) {
-    //
-    //}
 }

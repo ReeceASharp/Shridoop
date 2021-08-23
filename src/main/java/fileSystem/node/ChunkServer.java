@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocol.Protocol.*;
@@ -264,22 +265,6 @@ public class ChunkServer extends Node implements Heartbeat {
 
     }
 
-    @Override
-    public boolean handleCommand(String input) {
-        boolean isValid = true;
-        switch (input) {
-            case "list-files":
-                listChunks();
-                break;
-            case "config":
-                showConfig();
-                break;
-            default:
-                isValid = false;
-        }
-        return isValid;
-    }
-
     private void listChunks() {
         System.out.println("Home path: " + homePath);
         System.out.println("***********************");
@@ -301,10 +286,6 @@ public class ChunkServer extends Node implements Heartbeat {
                 "'help' for more details: ";
     }
 
-    @Override
-    public String[] commands() {
-        return commandList;
-    }
 
     public String getServerName() {
         return serverName;
@@ -321,6 +302,27 @@ public class ChunkServer extends Node implements Heartbeat {
         // server was shut down gracefully
         System.exit(0);
     }
+
+    @Override
+    public Map<String, Command> getCommandMap() {
+        return null;
+    }
+    //
+    //@Override
+    //public boolean handleCommand(String input) {
+    //    boolean isValid = true;
+    //    switch (input) {
+    //        case "list-files":
+    //            listChunks();
+    //            break;
+    //        case "config":
+    //            showConfig();
+    //            break;
+    //        default:
+    //            isValid = false;
+    //    }
+    //    return isValid;
+    //}
 
     @Override
     public void onHeartBeat(int type) {

@@ -5,6 +5,7 @@ import fileSystem.protocol.events.*;
 import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPReceiver;
 import fileSystem.transport.TCPServer;
+import fileSystem.util.Command;
 import fileSystem.util.ConsoleParser;
 import fileSystem.util.ContactList;
 import fileSystem.util.FileChunker;
@@ -16,6 +17,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Map;
 
 import static fileSystem.protocol.Protocol.*;
 
@@ -52,33 +54,6 @@ public class Client extends Node {
         System.out.println("Working Directory = " + System.getProperty("user.dir"));
     }
 
-    @Override
-    public boolean handleCommand(String input) {
-        boolean isValid = true;
-        String[] tokens = input.split(" ");
-
-        switch (tokens[0]) {
-            case "add":
-                localFilePath = tokens[1];
-                request(new ClientRequestsFileAdd(tokens[2],
-                        FileChunker.getChunkNumber(localFilePath),
-                        FileChunker.getFileSize(localFilePath)));
-                break;
-            case "delete":
-                request(new ClientRequestsFileDelete(tokens[1]));
-                break;
-            case "get":
-                request(new ClientRequestsFile(tokens[1]));
-                break;
-            case "list-files":
-                request(new ClientRequestsFileList(tokens[0]));
-                break;
-            default:
-                isValid = false;
-        }
-
-        return isValid;
-    }
 
     private void request(Event event) {
         try {
@@ -231,6 +206,41 @@ public class Client extends Node {
     }
 
     @Override
+    public Map<String, Command> getCommandMap() {
+
+        //
+        //@Override
+        //public boolean handleCommand(String input) {
+        //    boolean isValid = true;
+        //    String[] tokens = input.split(" ");
+        //
+        //    switch (tokens[0]) {
+        //        case "add":
+        //            localFilePath = tokens[1];
+        //            request(new ClientRequestsFileAdd(tokens[2],
+        //                    FileChunker.getChunkNumber(localFilePath),
+        //                    FileChunker.getFileSize(localFilePath)));
+        //            break;
+        //        case "delete":
+        //            request(new ClientRequestsFileDelete(tokens[1]));
+        //            break;
+        //        case "get":
+        //            request(new ClientRequestsFile(tokens[1]));
+        //            break;
+        //        case "list-files":
+        //            request(new ClientRequestsFileList(tokens[0]));
+        //            break;
+        //        default:
+        //            isValid = false;
+        //    }
+        //
+        //    return isValid;
+        //}
+        //
+        return null;
+    }
+
+    @Override
     public String help() {
         return "Client: This is the interface that is used to connect to a currently running Controller. Using one " +
                 "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
@@ -240,11 +250,6 @@ public class Client extends Node {
     public String intro() {
         return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from " +
                 "the cluster. More information available via 'help'.";
-    }
-
-    @Override
-    public String[] commands() {
-        return commandList;
     }
 
 }

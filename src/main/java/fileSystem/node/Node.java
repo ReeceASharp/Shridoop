@@ -5,11 +5,13 @@ import fileSystem.transport.ConnectionHandler;
 import fileSystem.transport.SocketStream;
 import fileSystem.transport.TCPSender;
 import fileSystem.transport.TCPServer;
+import fileSystem.util.Command;
 
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Map;
 
 import static fileSystem.util.ConsoleParser.*;
 
@@ -64,16 +66,7 @@ public abstract class Node {
      */
     public abstract String intro();
 
-    //get list of commands specific to a subclassed node
-    public abstract String[] commands();
 
-    /**
-     * If this is a command specific to a subclassed node, do something with it
-     *
-     * @param input command to be executed
-     * @return returns whether it was a valid command
-     */
-    public abstract boolean handleCommand(String input);
 
     /**
      * When receiving a command from a given TCP thread, do something with the request
@@ -105,5 +98,7 @@ public abstract class Node {
     protected String getServerHost() {
         return server.getServerHost();
     }
+
+    public abstract Map<String, Command> getCommandMap();
 
 }
