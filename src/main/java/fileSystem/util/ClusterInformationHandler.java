@@ -18,7 +18,7 @@ import java.util.Optional;
  * - Host
  * - port
  * - socket
- * - nickname
+ * - serverName
  * - timestamp of last heartbeat
  * - ID to uniquely identify server, used by the FileMetadata to
  * reference the servers holding chunks
@@ -54,9 +54,9 @@ public class ClusterInformationHandler {
         currentFiles.add(new FileMetadata(file, totalChunks, fileSize));
     }
 
-    public synchronized void addServer(String nickname, String host, int port, Socket socket) throws IOException {
+    public synchronized void addServer(String serverName, String host, int port, Socket socket) throws IOException {
         String heartbeatStamp = Instant.now().toString();
-        currentServers.add(new ServerMetadata(nickname, host, port, socket, heartbeatStamp));
+        currentServers.add(new ServerMetadata(serverName, host, port, socket, heartbeatStamp));
     }
 
     /**

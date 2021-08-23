@@ -3,26 +3,29 @@ package fileSystem.util;
 import fileSystem.node.Node;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+//import org.apache.commons.text.
+//import org.apache.commons.text.WordUtils;
 
 import java.util.Arrays;
 import java.util.Scanner;
+import java.util.stream.Stream;
 
 /*
-Constructed by the relevant node, and allows commands to be entered there
-Valid nodes: Client, Controller, ChunkServer
+Used by an implementation of a Node to give functionality for entering commands
  */
 public class ConsoleParser implements Runnable {
-    public static final int CONSOLE_INTRO = 1;
-    public static final int CONSOLE_HELP = 2;
-    public static final int CONSOLE_COMMANDS = 3;
-
     private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
-    private static final String[] basicCommands = {"commands", "help", "quit"};
+
+    private String[] commands = {"commands", "help", "quit"};
+
+
     private final Node node;
     private final Scanner userInput;
 
     public ConsoleParser(Node node) {
         this.node = node;
+        // Concatenate the known commands
+        this.setup();
 
         this.userInput = new Scanner(System.in);
     }
@@ -30,60 +33,75 @@ public class ConsoleParser implements Runnable {
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
+        System.out.println(node.intro());
 
-        System.out.println(node.getConsoleText(CONSOLE_INTRO));
-
-        boolean quit;
-        do {
-            quit = parseInput();
-        } while (!quit);
+        parseInput();
 
         node.cleanup();
-
-        logger.debug("EXITING CONSOLEPARSER");
+        logger.debug("Exiting ConsoleParser.");
     }
 
-    private boolean parseInput() {
-        System.out.print("Command: ");
-        String input = userInput.nextLine();
+    private void parseInput() {
 
-        String response = "";
-        boolean quit = false;
+        while(true) {
 
-        //Standard console commands, doesn't take into account custom, that is tried later and implemented in each node
-        boolean tryCustom = false;
-        switch (input.toLowerCase()) {
-            case "commands":
-                //jank, but Arrays.toString() doesn't have adjustable parameters
-                response = (node.getConsoleText(CONSOLE_COMMANDS) + Arrays.toString(basicCommands))
-                        .replace("[", "").replace("]", "");
-                break;
-            case "help":
-                response = node.getConsoleText(CONSOLE_HELP);
-                break;
-            case "quit":
-            case "exit":
-                quit = true;
-                break;
-            default:
-                tryCustom = true;
-        }
+            System.out.print("Command: ");
+            String input = userInput.nextLine();
 
-        //Node specific console commands
-        if (tryCustom) {
-            try {
-                if (!node.handleCommand(input))
-                    response = "ERROR: Invalid input. Enter 'help' for available commands.";
-            } catch (NullPointerException ne) {
-                //Can be thrown inside Client 'add' command
-                //executes on File not found when requesting it be added to the
-                System.out.print("File not found.");
+
+            // TODO: Rewrite logic to dump input into function
+            if (Arrays.stream(this.commands).anyMatch(input.toLowerCase()::equals)) {
+
             }
+
+
+            String response = null;
+            switch (input.toLowerCase()) {
+                case "commands":
+                    response = Arrays.toString(this.commands);
+                    break;
+                case "help":
+                    response = node.help();
+                    break;
+                case "quit":
+                    response = null;
+                    break;
+                default:
+                    try {
+                        if (!node.handleCommand(input))
+                            response = "ERROR: Invalid input. Enter 'help' for available commands.";
+                    } catch (NullPointerException ne) {
+                        //Can be thrown inside Client 'add' command
+                        //executes on File not found when requesting it be added to the
+                        System.out.print("File not found.");
+                    }
+            }
+
+            if (response != null)
+                System.out.println(response);
+            else
+                return;
         }
-
-        if (!quit)
-            System.out.println(response);
-
-        return quit;
     }
+
+    private void setup() {
+        resolveCommands();
+    }
+
+    private void resolveCommands() {
+        this.commands = Stream.concat(Arrays.stream(commands), Arrays.stream(this.node.commands())).toArray(String[]::new);
+    }
+
+    //private String resolveCommands() {
+    //    String[][] commands;
+    //
+    //    // Console Commands for Controller Node
+    //    //commands[0] = node.getConsoleText(CONSOLE_COMMANDS);
+    //
+    //
+    //}
+
+    //private String arraysToString(String[] arrayOne, ) {
+    //
+    //}
 }

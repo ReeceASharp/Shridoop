@@ -71,7 +71,7 @@ public class TCPReceiver implements Runnable {
                 e.printStackTrace();
             }
         }
-        logger.debug("Exiting TCPRECEIVER: " + socketStream.socket);
+        logger.debug("TCPReceiver Exiting: " + socketStream.socket);
     }
 
     public void cleanup() {

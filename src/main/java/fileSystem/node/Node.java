@@ -24,27 +24,6 @@ public abstract class Node {
     protected TCPServer server;
 
     /**
-     * Is passed the command and returns an output to the console
-     * Note: Java 8 doesn't allow private methods in an interface, only in Java 9
-     * As a result this must be an abstract class
-     *
-     * @param type text type to return
-     * @return returns the relevant text for the console to display
-     */
-    public String getConsoleText(int type) {
-        switch (type) {
-            case CONSOLE_INTRO:
-                return getIntro();
-            case CONSOLE_HELP:
-                return getHelp();
-            case CONSOLE_COMMANDS:
-                return Arrays.toString(getCommands());
-        }
-        // TODO: Throw error?
-        return "ERROR";
-    }
-
-    /**
      * send the bytes through a specific connection via thread
      *
      * @param socket The pipe through which data is being sent through
@@ -62,7 +41,7 @@ public abstract class Node {
      *
      * @return The hostname of the computer the node is running on
      */
-    protected String getHostname() {
+    protected String hostname() {
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
@@ -76,17 +55,17 @@ public abstract class Node {
      *
      * @return a string containing instructions on how to use the program
      */
-    protected abstract String getHelp();
+    public abstract String help();
 
     /**
      * information displayed on startup
      *
      * @return a string containing a basic description of the node
      */
-    protected abstract String getIntro();
+    public abstract String intro();
 
     //get list of commands specific to a subclassed node
-    public abstract String[] getCommands();
+    public abstract String[] commands();
 
     /**
      * If this is a command specific to a subclassed node, do something with it

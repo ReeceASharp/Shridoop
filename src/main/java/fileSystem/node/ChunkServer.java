@@ -27,13 +27,13 @@ public class ChunkServer extends Node implements Heartbeat {
 
     //needed for console commands, not the most DRY
     final String[] commandList = {"list-files", "config"};
-    private final String nickname;
+    private final String serverName;
     private final String homePath;
     private final FileHandler fileHandler;
 
 
-    public ChunkServer(String nickname, String homePath) {
-        this.nickname = nickname;
+    public ChunkServer(String serverName, String homePath) {
+        this.serverName = serverName;
         this.homePath = homePath;
         this.fileHandler = new FileHandler(homePath);
     }
@@ -42,15 +42,15 @@ public class ChunkServer extends Node implements Heartbeat {
         final String controllerHost = args[0];
         final int controllerPort = Integer.parseInt(args[1]);
         final int listenPort = Integer.parseInt(args[2]);
-        final String nickname = args[3];
+        final String serverName = args[3];
         final String homePath = args[4];
 
 
-        logger.debug(String.format("Listen: %d, Nickname: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
-                listenPort, nickname, homePath, controllerPort, controllerHost));
+        logger.debug(String.format("Listen: %d, serverName: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
+                listenPort, serverName, homePath, controllerPort, controllerHost));
 
         //get an object reference to be able to call functions and organize control flow
-        ChunkServer server = new ChunkServer(nickname, homePath);
+        ChunkServer server = new ChunkServer(serverName, homePath);
         server.configure(homePath);
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
@@ -87,7 +87,7 @@ public class ChunkServer extends Node implements Heartbeat {
         //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(node.getNickname(),
+        Event e = new ChunkServerRequestsRegistration(node.getServerName(),
                 node.getServerHost(),
                 node.getServerPort());
 
@@ -111,7 +111,7 @@ public class ChunkServer extends Node implements Heartbeat {
     private void showConfig() {
         System.out.printf("ServerName: '%s', Path: '%s'%n" +
                         "%s%n",
-                nickname, homePath, server);
+                serverName, homePath, server);
     }
 
     @Override
@@ -242,7 +242,7 @@ public class ChunkServer extends Node implements Heartbeat {
 
         //respond
         Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
-                getServerPort(), nickname);
+                getServerPort(), serverName);
 
         sendMessage(socket, event);
     }
@@ -290,24 +290,24 @@ public class ChunkServer extends Node implements Heartbeat {
     }
 
     @Override
-    protected String getHelp() {
+    public String help() {
         return "This is strictly used for development and to see system details locally. " +
                 "Available commands are shown with 'commands'.";
     }
 
     @Override
-    protected String getIntro() {
+    public String intro() {
         return "Distributed System ChunkServer (DEV ONLY), type " +
                 "'help' for more details: ";
     }
 
     @Override
-    public String[] getCommands() {
+    public String[] commands() {
         return commandList;
     }
 
-    public String getNickname() {
-        return nickname;
+    public String getServerName() {
+        return serverName;
     }
 
     @Override

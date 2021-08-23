@@ -311,7 +311,7 @@ public class Controller extends Node implements Heartbeat {
     private void chunkServerRegistration(Event e, Socket socket) throws IOException {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
 
-        clusterHandler.addServer(request.getNickname(), request.getHost(),
+        clusterHandler.addServer(request.getServerName(), request.getHost(),
                 request.getPort(), socket);
 
         logger.debug("Received Registration Request: " + socket);
@@ -320,7 +320,7 @@ public class Controller extends Node implements Heartbeat {
     }
 
     @Override
-    protected String getHelp() {
+    public String help() {
         return "Controller: This is the driver that organizes all communication for" +
                 "the cluster. Setup of the cluster is done here, and clients all communicate " +
                 "with this driver in order to store, update, or remove files. Available commands " +
@@ -328,13 +328,13 @@ public class Controller extends Node implements Heartbeat {
     }
 
     @Override
-    protected String getIntro() {
+    public String intro() {
         return "Distributed System Controller: Enter 'help' for more information on configuration " +
                 "or 'init' to start up the cluster";
     }
 
     @Override
-    public String[] getCommands() {
+    public String[] commands() {
         return commandList;
     }
 
@@ -371,7 +371,7 @@ public class Controller extends Node implements Heartbeat {
         // running the servers, this hard-codes it to a windows environment at the moment
         try {
             ProcessBuilder pb = new ProcessBuilder("C:\\Program Files\\Git\\bin\\bash.exe",
-                    "-c", String.format("bash ./start_chunks.sh %s %d", getHostname(), port));
+                    "-c", String.format("bash ./start_chunks.sh %s %d", hostname(), port));
             Process p = pb.start();
 
         } catch (Exception e) {

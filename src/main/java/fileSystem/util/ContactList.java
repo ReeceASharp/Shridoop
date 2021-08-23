@@ -1,7 +1,5 @@
 package fileSystem.util;
 
-import javafx.util.Pair;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -33,9 +31,9 @@ public class ContactList implements Serializable {
     }
 
     /**
-     * Returns a list of servers that contain/will contain this chunk
+     *
      * Note: The string needs to be separated, as it's in the form of "[HOST]:[PORT]"
-     * @return
+     * @return Returns a list of servers that contain/will contain this chunk
      */
     public ArrayList<String> getServersToContact() {
         return serversToContact;

@@ -231,19 +231,19 @@ public class Client extends Node {
     }
 
     @Override
-    protected String getHelp() {
-        return "Client: This is the interface that is used to connect to a currently running Controller. Using one" +
+    public String help() {
+        return "Client: This is the interface that is used to connect to a currently running Controller. Using one " +
                 "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
     }
 
     @Override
-    protected String getIntro() {
-        return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from" +
+    public String intro() {
+        return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from " +
                 "the cluster. More information available via 'help'.";
     }
 
     @Override
-    public String[] getCommands() {
+    public String[] commands() {
         return commandList;
     }
 
