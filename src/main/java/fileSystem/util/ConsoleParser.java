@@ -3,87 +3,80 @@ package fileSystem.util;
 import fileSystem.node.Node;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+//import org.apache.commons.text.
+//import org.apache.commons.text.WordUtils;
 
-import java.util.Arrays;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 /*
-Constructed by the relevant node, and allows commands to be entered there
-Valid nodes: Client, Controller, ChunkServer
+Used by an implementation of a Node to give functionality for entering commands
  */
 public class ConsoleParser implements Runnable {
-    public static final int CONSOLE_INTRO = 1;
-    public static final int CONSOLE_HELP = 2;
-    public static final int CONSOLE_COMMANDS = 3;
-
     private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
-    private static final String[] basicCommands = {"commands", "help", "quit"};
+
+    private final Map<String, Command> commandMap = new HashMap<>();
+
     private final Node node;
     private final Scanner userInput;
 
-    public ConsoleParser(Node node) {
-        this.node = node;
 
+    public ConsoleParser(Node node) {
+        this.setup(node);
+
+        this.node = node;
         this.userInput = new Scanner(System.in);
     }
 
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
+        System.out.println(node.intro());
 
-        System.out.println(node.getConsoleText(CONSOLE_INTRO));
-
-        boolean quit;
-        do {
-            quit = parseInput();
-        } while (!quit);
+        parseInput();
 
         node.cleanup();
-
-        logger.debug("EXITING CONSOLEPARSER");
+        logger.debug("Exiting ConsoleParser.");
     }
 
-    private boolean parseInput() {
-        System.out.print("Command: ");
-        String input = userInput.nextLine();
+    private void parseInput() {
+        while(true) {
 
-        String response = "";
-        boolean quit = false;
+            System.out.print("Command: ");
+            String input = userInput.nextLine();
 
-        //Standard console commands, doesn't take into account custom, that is tried later and implemented in each node
-        boolean tryCustom = false;
-        switch (input.toLowerCase()) {
-            case "commands":
-                //jank, but Arrays.toString() doesn't have adjustable parameters
-                response = (node.getConsoleText(CONSOLE_COMMANDS) + Arrays.toString(basicCommands))
-                        .replace("[", "").replace("]", "");
-                break;
-            case "help":
-                response = node.getConsoleText(CONSOLE_HELP);
-                break;
-            case "quit":
-            case "exit":
-                quit = true;
-                break;
-            default:
-                tryCustom = true;
-        }
-
-        //Node specific console commands
-        if (tryCustom) {
+            String result;
+            //Compare the input command with known commands
             try {
-                if (!node.handleCommand(input))
-                    response = "ERROR: Invalid input. Enter 'help' for available commands.";
-            } catch (NullPointerException ne) {
-                //Can be thrown inside Client 'add' command
-                //executes on File not found when requesting it be added to the
-                System.out.print("File not found.");
+                Command func = commandMap.get(input.split(" ")[0].toLowerCase());
+                result = func.runAction(input);
+            } catch (NullPointerException npe) {
+                result = "Invalid Command.";
+            } catch (Exception e) {
+                result = "Incorrect Parameters.";
             }
+
+            if (result == null)
+                return;
+
+            System.out.println(result);
         }
-
-        if (!quit)
-            System.out.println(response);
-
-        return quit;
     }
+
+    private void setup(Node node) {
+        resolveCommands(node);
+    }
+
+    private void resolveCommands(Node node) {
+
+        this.commandMap.put("commands", userInput -> this.commandMap.keySet().toString());
+        this.commandMap.put("help", userInput -> node.help());
+        this.commandMap.put("quit", userInput -> null);
+
+        // Get the node specific commands, and their mappings
+        this.commandMap.putAll(node.getCommandMap());
+    }
+
 }

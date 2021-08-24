@@ -10,14 +10,14 @@ import static fileSystem.protocol.Protocol.CHUNK_SERVER_REQUESTS_REGISTRATION;
 public class ChunkServerRequestsRegistration implements Event {
     static final int type = CHUNK_SERVER_REQUESTS_REGISTRATION;
 
-    private final String nickname;
+    private final String serverName;
     private final String originatingHost;
     private final int originatingPort;
 
 
 
-    public ChunkServerRequestsRegistration(String nickname, String host, int port) {
-        this.nickname = nickname;
+    public ChunkServerRequestsRegistration(String serverName, String host, int port) {
+        this.serverName = serverName;
         this.originatingHost = host;
         this.originatingPort = port;
     }
@@ -35,8 +35,8 @@ public class ChunkServerRequestsRegistration implements Event {
         return originatingPort;
     }
 
-    public String getNickname() {
-        return nickname;
+    public String getServerName() {
+        return serverName;
     }
 
 }

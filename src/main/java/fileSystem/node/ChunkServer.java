@@ -15,9 +15,12 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocol.Protocol.*;
+import static fileSystem.util.Utils.appendLn;
 
 public class ChunkServer extends Node implements Heartbeat {
     //private static final int SLICE_SIZE = 8192;
@@ -26,14 +29,13 @@ public class ChunkServer extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
     //needed for console commands, not the most DRY
-    final String[] commandList = {"list-files", "config"};
-    private final String nickname;
+    private final String serverName;
     private final String homePath;
     private final FileHandler fileHandler;
 
 
-    public ChunkServer(String nickname, String homePath) {
-        this.nickname = nickname;
+    public ChunkServer(String serverName, String homePath) {
+        this.serverName = serverName;
         this.homePath = homePath;
         this.fileHandler = new FileHandler(homePath);
     }
@@ -42,15 +44,15 @@ public class ChunkServer extends Node implements Heartbeat {
         final String controllerHost = args[0];
         final int controllerPort = Integer.parseInt(args[1]);
         final int listenPort = Integer.parseInt(args[2]);
-        final String nickname = args[3];
+        final String serverName = args[3];
         final String homePath = args[4];
 
 
-        logger.debug(String.format("Listen: %d, Nickname: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
-                listenPort, nickname, homePath, controllerPort, controllerHost));
+        logger.debug(String.format("Listen: %d, serverName: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
+                listenPort, serverName, homePath, controllerPort, controllerHost));
 
         //get an object reference to be able to call functions and organize control flow
-        ChunkServer server = new ChunkServer(nickname, homePath);
+        ChunkServer server = new ChunkServer(serverName, homePath);
         server.configure(homePath);
         //create a server thread to listen to incoming connections
         Semaphore setupLock = new Semaphore(1);
@@ -87,7 +89,7 @@ public class ChunkServer extends Node implements Heartbeat {
         //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(node.getNickname(),
+        Event e = new ChunkServerRequestsRegistration(node.getServerName(),
                 node.getServerHost(),
                 node.getServerPort());
 
@@ -108,10 +110,11 @@ public class ChunkServer extends Node implements Heartbeat {
     /**
      * Print out the details of the ChunkServer in a formatted way
      */
-    private void showConfig() {
-        System.out.printf("ServerName: '%s', Path: '%s'%n" +
-                        "%s%n",
-                nickname, homePath, server);
+    private String showConfig() {
+        return String.format("ServerName: '%s', " +
+                             "Path: '%s'%n" +
+                             "Server%s%n",
+                              serverName, homePath, server);
     }
 
     @Override
@@ -242,7 +245,7 @@ public class ChunkServer extends Node implements Heartbeat {
 
         //respond
         Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
-                getServerPort(), nickname);
+                getServerPort(), serverName);
 
         sendMessage(socket, event);
     }
@@ -264,50 +267,32 @@ public class ChunkServer extends Node implements Heartbeat {
 
     }
 
-    @Override
-    public boolean handleCommand(String input) {
-        boolean isValid = true;
-        switch (input) {
-            case "list-files":
-                listChunks();
-                break;
-            case "config":
-                showConfig();
-                break;
-            default:
-                isValid = false;
-        }
-        return isValid;
-    }
-
-    private void listChunks() {
-        System.out.println("Home path: " + homePath);
-        System.out.println("***********************");
+    private String listChunks() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, "Home path: " + homePath);
+        appendLn(sb, "***********************");
         for (FileChunkData smd : fileHandler.getFileChunks()) {
-            System.out.println(smd);
+            appendLn(sb, smd.toString());
         }
-        System.out.println("***********************");
+        appendLn(sb, "***********************");
+        return sb.toString();
     }
 
     @Override
-    protected String getHelp() {
+    public String help() {
         return "This is strictly used for development and to see system details locally. " +
                 "Available commands are shown with 'commands'.";
     }
 
     @Override
-    protected String getIntro() {
+    public String intro() {
         return "Distributed System ChunkServer (DEV ONLY), type " +
                 "'help' for more details: ";
     }
 
-    @Override
-    public String[] getCommands() {
-        return commandList;
-    }
 
-    public String getNickname() {
-        return nickname;
+    public String getServerName() {
+        return serverName;
     }
 
     @Override
@@ -320,6 +305,16 @@ public class ChunkServer extends Node implements Heartbeat {
         // the only real way to exit is via the System, which is fine considering the
         // server was shut down gracefully
         System.exit(0);
+    }
+
+    @Override
+    public Map<String, Command> getCommandMap() {
+        Map<String, Command> commandMap = new HashMap<>();
+
+        commandMap.put("list-files", userInput -> listChunks());
+        commandMap.put("config", userInput -> showConfig());
+
+        return commandMap;
     }
 
     @Override

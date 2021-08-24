@@ -1,38 +1,31 @@
 package fileSystem.node;
 
-import fileSystem.protocol.Event;
+import fileSystem.protocol.*;
 import fileSystem.protocol.events.*;
-import fileSystem.transport.SocketStream;
-import fileSystem.transport.TCPReceiver;
-import fileSystem.transport.TCPServer;
-import fileSystem.util.ConsoleParser;
-import fileSystem.util.ContactList;
-import fileSystem.util.FileChunker;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import fileSystem.transport.*;
+import fileSystem.util.*;
+import org.apache.logging.log4j.*;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.Socket;
-import java.util.ArrayList;
+import java.io.*;
+import java.net.*;
+import java.nio.file.*;
+import java.util.*;
 
 import static fileSystem.protocol.Protocol.*;
 
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
 
-    final String[] commandList = {"add", "delete", "get", "list-files"};
     private final String controllerHost;
     private final int controllerPort;
-    //Temporary, until I figure out a better solution
-    private String localFilePath;
     private Socket controllerSocket;
-
+    private final Map<String, String> intermediateFilePaths;
 
     public Client(String host, int port) {
         this.controllerHost = host;
         this.controllerPort = port;
+
+        this.intermediateFilePaths = new HashMap<>();
     }
 
 
@@ -49,57 +42,18 @@ public class Client extends Node {
         //Console parser
         Thread console = new Thread(new ConsoleParser(client));
         console.start();
-        System.out.println("Working Directory = " + System.getProperty("user.dir"));
     }
 
     @Override
-    public boolean handleCommand(String input) {
-        boolean isValid = true;
-        String[] tokens = input.split(" ");
-
-        switch (tokens[0]) {
-            case "add":
-                localFilePath = tokens[1];
-                request(new ClientRequestsFileAdd(tokens[2],
-                        FileChunker.getChunkNumber(localFilePath),
-                        FileChunker.getFileSize(localFilePath)));
-                break;
-            case "delete":
-                request(new ClientRequestsFileDelete(tokens[1]));
-                break;
-            case "get":
-                request(new ClientRequestsFile(tokens[1]));
-                break;
-            case "list-files":
-                request(new ClientRequestsFileList(tokens[0]));
-                break;
-            default:
-                isValid = false;
-        }
-
-        return isValid;
+    public String help() {
+        return "Client: This is the interface that is used to connect to a currently running Controller. Using one " +
+                       "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
     }
 
-    private void request(Event event) {
-        try {
-            if (controllerSocket == null) {
-
-                controllerSocket = new Socket(controllerHost, controllerPort);
-                SocketStream ss = new SocketStream(controllerSocket);
-                connectionHandler.addConnection(ss);
-
-                //create a listener on this new connection to listen for future responses
-                Thread receiver = new Thread(new TCPReceiver(this, ss, server));
-                receiver.start();
-            }
-            logger.debug("Sending request");
-            //send it off to the Controller to respond
-            sendMessage(controllerSocket, event);
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    @Override
+    public String intro() {
+        return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from " +
+                       "the cluster. More information available via 'help'.";
     }
 
     @Override
@@ -107,13 +61,13 @@ public class Client extends Node {
         switch (e.getType()) {
             // Controller -> Client
             case CONTROLLER_REPORTS_FILE_LIST:
-                displayFiles(e);
+                displayStoredFiles(e);
                 break;
             case CONTROLLER_REPORTS_CHUNK_GET_LIST:
-                getFileFromServers(e);
+                receiveChunkFetchList(e);
                 break;
             case CONTROLLER_REPORTS_CHUNK_ADD_LIST:
-                addFileToServers(e);
+                receiveChunkAddList(e);
                 break;
             case CONTROLLER_REPORTS_FILE_REMOVE_STATUS:
                 deleteStatus(e);
@@ -126,30 +80,34 @@ public class Client extends Node {
 
     }
 
-    /**
-     * Displays whether the delete request went through
-     *
-     * @param e The event to be converted to ControllerReportsFileDeleteStatus
-     */
-    private void deleteStatus(Event e) {
-        //ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
-//
-//        switch (response.getStatus()) {
-//            case RESPONSE_SUCCESS:
-//                break;
-//            case RESPONSE_FAILURE:
-//                break;
-//
-//        }
+    private void displayStoredFiles(Event e) {
+        ControllerReportsFileList response = (ControllerReportsFileList) e;
+
+        if (response.getStatus() == RESPONSE_SUCCESS) {
+            System.out.println("**** Files **** ");
+            for (String file : response.getFiles()) {
+                System.out.println(file);
+            }
+            System.out.println("  ************  ");
+        } else if (response.getStatus() == RESPONSE_FAILURE) {
+            System.out.println("Failure to handle list query.");
+        }
     }
 
-    private void addFileToServers(Event e) {
+    private void receiveChunkFetchList(Event e) {
+        ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
+
+        //TODO: handle logic of querying the ChunkServers
+    }
+
+    private void receiveChunkAddList(Event e) {
         ControllerReportsChunkAddList response = (ControllerReportsChunkAddList) e;
-        logger.debug("Received List, Sending data to clients.");
+        logger.debug("Received list, Sending out file partitions to chunkServers.");
 
         // Setup file input streams to handle the chunk creation of the file,
-        // use try-with-resource to simplify the closing/cleanup of the input streams
-        try (FileInputStream fis = new FileInputStream(localFilePath);
+
+
+        try (FileInputStream fis = new FileInputStream(fetchFilePath(response.getFile()));
              BufferedInputStream bis = new BufferedInputStream(fis)) {
             int bytesRead;
             //maximum size of chunk
@@ -205,24 +163,25 @@ public class Client extends Node {
         }
     }
 
-    private void getFileFromServers(Event e) {
-        ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
-
-        //TODO: handle logic of querying the ChunkServers
+    /**
+     * Displays whether the delete request went through
+     *
+     * @param e The event to be converted to ControllerReportsFileDeleteStatus
+     */
+    private void deleteStatus(Event e) {
+        //ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
+//
+//        switch (response.getStatus()) {
+//            case RESPONSE_SUCCESS:
+//                break;
+//            case RESPONSE_FAILURE:
+//                break;
+//
+//        }
     }
 
-    private void displayFiles(Event e) {
-        ControllerReportsFileList response = (ControllerReportsFileList) e;
-
-        if (response.getStatus() == RESPONSE_SUCCESS) {
-            System.out.println("**** Files **** ");
-            for (String file : response.getFiles()) {
-                System.out.println(file);
-            }
-            System.out.println("  ************  ");
-        } else if (response.getStatus() == RESPONSE_FAILURE) {
-            System.out.println("Failure to handle list query.");
-        }
+    private String fetchFilePath(String cloudPath) {
+        return intermediateFilePaths.get(cloudPath);
     }
 
     @Override
@@ -231,20 +190,74 @@ public class Client extends Node {
     }
 
     @Override
-    protected String getHelp() {
-        return "Client: This is the interface that is used to connect to a currently running Controller. Using one" +
-                "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
+    public Map<String, Command> getCommandMap() {
+        Map<String, Command> commandMap = new HashMap<>();
+
+        commandMap.put("add", this::addFile);
+        commandMap.put("delete", this::deleteFile);
+        commandMap.put("get", this::getFile);
+        commandMap.put("list-files", this::listFile);
+
+        return commandMap;
     }
 
-    @Override
-    protected String getIntro() {
-        return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from" +
-                "the cluster. More information available via 'help'.";
+    private String addFile(String userInput) {
+        String[] tokens = userInput.split(" ");
+
+        String cloudPath = tokens[2];
+        Path filePath = Paths.get(tokens[1]).toAbsolutePath().normalize();
+        int numOfChunks = FileChunker.getChunkNumber(filePath);
+        long fileSize = FileChunker.getFileSize(filePath);
+
+        this.intermediateFilePaths.put(cloudPath, filePath.toString());
+
+        request(new ClientRequestsFileAdd(cloudPath, numOfChunks, fileSize));
+
+        return String.format("Add file: '%s', local: %s, size: %d, chunks: %d.", cloudPath, filePath, fileSize, numOfChunks);
     }
 
-    @Override
-    public String[] getCommands() {
-        return commandList;
+    private String deleteFile(String userInput) {
+        String[] tokens = userInput.split(" ");
+        String fileName = "";
+        request(new ClientRequestsFileDelete(tokens[1]));
+        return String.format("Delete file: '%s'.", fileName);
+    }
+
+    private String getFile(String userInput) {
+        String fileName = "";
+        String[] tokens = userInput.split(" ");
+        request(new ClientRequestsFile(tokens[1]));
+
+        return String.format("Get file: '%s'.", fileName);
+    }
+
+    private String listFile(String userInput) {
+        String[] tokens = userInput.split(" ");
+        request(new ClientRequestsFileList(tokens[0]));
+
+        return "Retrieving File-list metadata.";
+    }
+
+    private void request(Event event) {
+        try {
+            if (controllerSocket == null) {
+
+                controllerSocket = new Socket(controllerHost, controllerPort);
+                SocketStream ss = new SocketStream(controllerSocket);
+                connectionHandler.addConnection(ss);
+
+                //create a listener on this new connection to listen for future responses
+                Thread receiver = new Thread(new TCPReceiver(this, ss, server));
+                receiver.start();
+            }
+            logger.debug("Sending request");
+            //send it off to the Controller to respond
+            sendMessage(controllerSocket, event);
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

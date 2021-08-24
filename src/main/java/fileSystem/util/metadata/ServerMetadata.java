@@ -8,15 +8,15 @@ import java.util.UUID;
  * Private data structure used by the ServerMetadata to contruct separate objects for each ChunkServer
  */
 public class ServerMetadata {
-    public final String nickname;
+    public final String serverName;
     public final String host;
     public final int port;
     public final Socket socket;
     public final UUID serverID;
     public String heartbeatTimestamp;
 
-    public ServerMetadata(String nickname, String host, int port, Socket socket, String heartbeatTimestamp) throws IOException {
-        this.nickname = nickname;
+    public ServerMetadata(String serverName, String host, int port, Socket socket, String heartbeatTimestamp) {
+        this.serverName = serverName;
         this.host = host;
         this.port = port;
         this.socket = socket;
@@ -27,7 +27,7 @@ public class ServerMetadata {
     @Override
     public String toString() {
         return "ServerMetadata{" +
-                "nickname='" + nickname + '\'' +
+                "serverName='" + serverName + '\'' +
                 ", host='" + host + '\'' +
                 ", port=" + port +
                 ", socket=" + socket +

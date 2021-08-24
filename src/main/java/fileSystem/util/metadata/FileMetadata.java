@@ -1,6 +1,7 @@
 package fileSystem.util.metadata;
 
 import fileSystem.util.metadata.ChunkMetadata;
+import org.apache.logging.log4j.core.util.*;
 
 import java.util.ArrayList;
 
@@ -20,4 +21,13 @@ public class FileMetadata {
         chunkList = new ArrayList<>(numberOfChunks);
     }
 
+    @Override
+    public String toString() {
+        return "FileMetadata{" +
+                       "fileName='" + fileName + '\'' +
+                       ", numberOfChunks=" + numberOfChunks +
+                       ", fileSize=" + fileSize +
+                       ", chunkList=" + chunkList +
+                       '}';
+    }
 }

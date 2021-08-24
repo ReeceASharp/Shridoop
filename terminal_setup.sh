@@ -7,31 +7,34 @@
 SESSION="Distributed"
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+echo "SCRIPT DIR: $SCRIPT_DIR"
 
 # Dimensions of Grid of terminals, and percentage of entire terminal
 MATRIX_WIDTH=3
-MATRIX_HEIGHT=2
+MATRIX_HEIGHT=3
 MATRIX_PERCENT=70
 
 # Contents can be edited, and these commands will be ran inside their respective terminal
 top_left() {
-  clear
-  cd "$SCRIPT_DIR"
+  echo "${SCRIPT_DIR}"
+  cd "${SCRIPT_DIR}"
   java -cp target/Distributed_File_System-*.jar fileSystem.node.Controller 7000
 }
 
 top_right() {
+  echo "${SCRIPT_DIR}"
+  cd "${SCRIPT_DIR}"
   clear
   sleep 5
-  cd "$SCRIPT_DIR"
   java -cp target/Distributed_File_System-*.jar fileSystem.node.Client localhost 7000
 }
 
 matrix() {
+  echo "${SCRIPT_DIR}"
+  cd "${SCRIPT_DIR}"
   echo 'Waiting 5 seconds for the Controller to start up'
   sleep 5
   clear
-  cd "$SCRIPT_DIR"
   java -cp target/Distributed_File_System-*.jar fileSystem.node.ChunkServer localhost 7000
 }
 
@@ -41,7 +44,6 @@ function_contents() {
   while [ "$1" ];  do
     type "$1" | sed  -n '/^    /{s/^    //p}' | sed '$s/.*/&;/' ; shift
   done
-
 }
 
 # Dump the functions above to a string with each command delimited by semicolons to be sent to a tmux
@@ -106,6 +108,7 @@ then
 fi
 
 # Start up a client, and focus on it
+tmux select-pane -t 1
 tmux attach-session -t $SESSION
 
 
