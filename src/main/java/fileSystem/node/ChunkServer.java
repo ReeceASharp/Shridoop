@@ -15,10 +15,12 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocol.Protocol.*;
+import static fileSystem.util.Utils.appendLn;
 
 public class ChunkServer extends Node implements Heartbeat {
     //private static final int SLICE_SIZE = 8192;
@@ -27,7 +29,6 @@ public class ChunkServer extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
 
     //needed for console commands, not the most DRY
-    final String[] commandList = {"list-files", "config"};
     private final String serverName;
     private final String homePath;
     private final FileHandler fileHandler;
@@ -109,10 +110,11 @@ public class ChunkServer extends Node implements Heartbeat {
     /**
      * Print out the details of the ChunkServer in a formatted way
      */
-    private void showConfig() {
-        System.out.printf("ServerName: '%s', Path: '%s'%n" +
-                        "%s%n",
-                serverName, homePath, server);
+    private String showConfig() {
+        return String.format("ServerName: '%s', " +
+                             "Path: '%s'%n" +
+                             "Server%s%n",
+                              serverName, homePath, server);
     }
 
     @Override
@@ -265,13 +267,15 @@ public class ChunkServer extends Node implements Heartbeat {
 
     }
 
-    private void listChunks() {
-        System.out.println("Home path: " + homePath);
-        System.out.println("***********************");
+    private String listChunks() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, "Home path: " + homePath);
+        appendLn(sb, "***********************");
         for (FileChunkData smd : fileHandler.getFileChunks()) {
-            System.out.println(smd);
+            appendLn(sb, smd.toString());
         }
-        System.out.println("***********************");
+        appendLn(sb, "***********************");
+        return sb.toString();
     }
 
     @Override
@@ -305,24 +309,13 @@ public class ChunkServer extends Node implements Heartbeat {
 
     @Override
     public Map<String, Command> getCommandMap() {
-        return null;
+        Map<String, Command> commandMap = new HashMap<>();
+
+        commandMap.put("list-files", userInput -> listChunks());
+        commandMap.put("config", userInput -> showConfig());
+
+        return commandMap;
     }
-    //
-    //@Override
-    //public boolean handleCommand(String input) {
-    //    boolean isValid = true;
-    //    switch (input) {
-    //        case "list-files":
-    //            listChunks();
-    //            break;
-    //        case "config":
-    //            showConfig();
-    //            break;
-    //        default:
-    //            isValid = false;
-    //    }
-    //    return isValid;
-    //}
 
     @Override
     public void onHeartBeat(int type) {

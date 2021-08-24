@@ -2,5 +2,5 @@ package fileSystem.util;
 
 
 public interface Command {
-    String action(String userInput);
+    String runAction(String userInput);
 }

@@ -348,6 +348,8 @@ public class Controller extends Node implements Heartbeat {
      * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
      */
     private String initialize() {
+        //TODO: Refactor Tmux script to instead be called here
+
         if (isActive)
             return "Already active.";
         isActive = true;

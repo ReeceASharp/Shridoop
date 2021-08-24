@@ -11,7 +11,7 @@ echo "SCRIPT DIR: $SCRIPT_DIR"
 
 # Dimensions of Grid of terminals, and percentage of entire terminal
 MATRIX_WIDTH=3
-MATRIX_HEIGHT=2
+MATRIX_HEIGHT=3
 MATRIX_PERCENT=70
 
 # Contents can be edited, and these commands will be ran inside their respective terminal
@@ -108,6 +108,7 @@ then
 fi
 
 # Start up a client, and focus on it
+tmux select-pane -t 1
 tmux attach-session -t $SESSION
 
 

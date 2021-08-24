@@ -18,7 +18,9 @@ public class ControllerReportsChunkAddList implements Event {
     private final String file;
     private final ArrayList<ContactList> chunkDestinations;
 
-    public ControllerReportsChunkAddList(int status, String file, ArrayList<ContactList> chunkDestinations) {
+    public ControllerReportsChunkAddList(int status,
+                                         String file,
+                                         ArrayList<ContactList> chunkDestinations) {
         this.status = status;
         this.file = file;
         this.chunkDestinations = chunkDestinations;

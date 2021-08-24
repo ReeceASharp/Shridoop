@@ -6,7 +6,7 @@ import org.apache.logging.log4j.Logger;
 //import org.apache.commons.text.
 //import org.apache.commons.text.WordUtils;
 
-import java.util.Arrays;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -24,10 +24,10 @@ public class ConsoleParser implements Runnable {
 
 
     public ConsoleParser(Node node) {
+        this.setup(node);
+
         this.node = node;
         this.userInput = new Scanner(System.in);
-
-        this.setup();
     }
 
     @Override
@@ -42,63 +42,41 @@ public class ConsoleParser implements Runnable {
     }
 
     private void parseInput() {
-
         while(true) {
 
             System.out.print("Command: ");
             String input = userInput.nextLine();
 
+            String result;
+            //Compare the input command with known commands
+            try {
+                Command func = commandMap.get(input.split(" ")[0].toLowerCase());
+                result = func.runAction(input);
+            } catch (NullPointerException npe) {
+                result = "Invalid Command.";
+            } catch (Exception e) {
+                result = "Incorrect Parameters.";
+            }
 
-            // TODO: Rewrite logic to use commandMap
-            //if (Arrays.stream(this.commands).anyMatch(input.toLowerCase()::equals)) {
-            //
-            //}
+            if (result == null)
+                return;
 
-
-            //String response = null;
-            //switch (input.toLowerCase()) {
-            //    case "commands":
-            //        //response = Arrays.toString(this.commands);
-            //        break;
-            //    case "help":
-            //        //response = node.help();
-            //        break;
-            //    case "quit":
-            //        //response = null;
-            //        break;
-            //    default:
-            //        try {
-            //            if (!node.handleCommand(input))
-            //                response = "ERROR: Invalid input. Enter 'help' for available commands.";
-            //        } catch (NullPointerException ne) {
-            //            //Can be thrown inside Client 'add' command
-            //            //executes on File not found when requesting it be added to the
-            //            System.out.print("File not found.");
-            //        }
-            //}
-            //
-            //if (response != null)
-            //    System.out.println(response);
-            //else
-            //    return;
+            System.out.println(result);
         }
     }
 
-    private void setup() {
-        resolveCommands();
+    private void setup(Node node) {
+        resolveCommands(node);
     }
 
-    private void resolveCommands() {
+    private void resolveCommands(Node node) {
 
         this.commandMap.put("commands", userInput -> this.commandMap.keySet().toString());
-        this.commandMap.put("help", userInput -> this.node.help());
+        this.commandMap.put("help", userInput -> node.help());
         this.commandMap.put("quit", userInput -> null);
 
         // Get the node specific commands, and their mappings
-        this.commandMap.putAll(this.node.getCommandMap());
-
-
-        //this.commands = Stream.concat(Arrays.stream(commands), Arrays.stream(this.node.commands())).toArray(String[]::new);
+        this.commandMap.putAll(node.getCommandMap());
     }
 
 }
