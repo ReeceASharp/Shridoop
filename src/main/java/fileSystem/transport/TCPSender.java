@@ -14,7 +14,7 @@ import java.net.SocketException;
  * Organizes how marshalled data is sent
  */
 public class TCPSender implements Runnable {
-    private static final Logger logger = LogManager.getLogger(Controller.class);
+    private static final Logger logger = LogManager.getLogger(TCPSender.class);
 
     private final Socket socket;
     private final ObjectOutputStream outStream;
@@ -30,13 +30,10 @@ public class TCPSender implements Runnable {
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
         try {
-            //synchronize access so multiple threads don't attempt to write and corrupt the message
-                //logger.debug("SENDING MESSAGE" + socket);
             synchronized (outStream) {
                 outStream.writeObject(eventToSend);
                 outStream.flush();
             }
-
         } catch (SocketException se) {
             logger.error(socket);
             se.printStackTrace();

@@ -39,4 +39,12 @@ public class ChunkServerRequestsRegistration implements Event {
         return serverName;
     }
 
+    @Override
+    public String toString() {
+        return "ChunkServerRequestsRegistration{" +
+                       "serverName='" + serverName + '\'' +
+                       ", originatingHost='" + originatingHost + '\'' +
+                       ", originatingPort=" + originatingPort +
+                       '}';
+    }
 }

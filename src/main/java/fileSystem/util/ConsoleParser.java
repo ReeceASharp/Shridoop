@@ -17,7 +17,7 @@ Used by an implementation of a Node to give functionality for entering commands
 public class ConsoleParser implements Runnable {
     private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
 
-    private final Map<String, Command> commandMap = new HashMap<>();
+    private final Map<String, Command> commandList = new HashMap<>();
 
     private final Node node;
     private final Scanner userInput;
@@ -50,8 +50,8 @@ public class ConsoleParser implements Runnable {
             String result;
             //Compare the input command with known commands
             try {
-                Command func = commandMap.get(input.split(" ")[0].toLowerCase());
-                result = func.runAction(input);
+                Command func = commandList.get(input.split(" ")[0].toLowerCase());
+                result = func.runCommand(input);
             } catch (NullPointerException npe) {
                 result = "Invalid Command.";
             } catch (Exception e) {
@@ -71,12 +71,12 @@ public class ConsoleParser implements Runnable {
 
     private void resolveCommands(Node node) {
 
-        this.commandMap.put("commands", userInput -> this.commandMap.keySet().toString());
-        this.commandMap.put("help", userInput -> node.help());
-        this.commandMap.put("quit", userInput -> null);
+        this.commandList.put("commands", userInput -> this.commandList.keySet().toString());
+        this.commandList.put("help", userInput -> node.help());
+        this.commandList.put("quit", userInput -> null);
 
         // Get the node specific commands, and their mappings
-        this.commandMap.putAll(node.getCommandMap());
+        this.commandList.putAll(node.getCommandList());
     }
 
 }

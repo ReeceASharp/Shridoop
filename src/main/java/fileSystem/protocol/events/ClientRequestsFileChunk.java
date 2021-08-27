@@ -21,4 +21,11 @@ public class ClientRequestsFileChunk implements Event {
     public int getType() {
         return type;
     }
+
+    @Override
+    public String toString() {
+        return "ClientRequestsFileChunk{" +
+                       "file='" + file + '\'' +
+                       '}';
+    }
 }

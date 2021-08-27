@@ -23,4 +23,11 @@ public class ClientRequestsFileDelete implements Event {
     public String getFile() {
         return file;
     }
+
+    @Override
+    public String toString() {
+        return "ClientRequestsFileDelete{" +
+                       "file='" + file + '\'' +
+                       '}';
+    }
 }

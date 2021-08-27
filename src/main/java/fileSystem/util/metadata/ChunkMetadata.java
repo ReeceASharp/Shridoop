@@ -1,6 +1,7 @@
 package fileSystem.util.metadata;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Metadata for each chunk, contains the chunkNumber of the associated file,
@@ -11,7 +12,7 @@ public class ChunkMetadata {
     int chunkNumber;
     int chunkSize;
     String chunkHash;
-    ArrayList<Integer> serversHoldingChunk;
+    ArrayList<UUID> serversHoldingChunk;
     ArrayList<String> sliceCheckSums;
 
 
@@ -21,6 +22,17 @@ public class ChunkMetadata {
         this.chunkHash = chunkHash;
         this.serversHoldingChunk = new ArrayList<>();
         this.sliceCheckSums = new ArrayList<>();
+    }
+
+    @Override
+    public String toString() {
+        return "ChunkMetadata{" +
+                       "chunkNumber=" + chunkNumber +
+                       ", chunkSize=" + chunkSize +
+                       ", chunkHash='" + chunkHash + '\'' +
+                       ", serversHoldingChunk=" + serversHoldingChunk +
+                       ", sliceCheckSums=" + sliceCheckSums +
+                       '}';
     }
 
     private class SliceMetadata {

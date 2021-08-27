@@ -26,6 +26,15 @@ public class ControllerReportsChunkAddList implements Event {
         this.chunkDestinations = chunkDestinations;
     }
 
+    @Override
+    public String toString() {
+        return "ControllerReportsChunkAddList{" +
+                       "status=" + status +
+                       ", file='" + file + '\'' +
+                       ", chunkDestinations=" + chunkDestinations +
+                       '}';
+    }
+
     public String getFile() {
         return file;
     }

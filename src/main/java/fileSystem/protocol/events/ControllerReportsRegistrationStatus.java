@@ -25,4 +25,11 @@ public class ControllerReportsRegistrationStatus implements Event {
     public int getStatus() {
         return status;
     }
+
+    @Override
+    public String toString() {
+        return "ControllerReportsRegistrationStatus{" +
+                       "status=" + status +
+                       '}';
+    }
 }

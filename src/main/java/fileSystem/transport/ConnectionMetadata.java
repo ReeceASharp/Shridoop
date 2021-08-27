@@ -8,11 +8,11 @@ import java.util.Optional;
  * Wraps the socket streams, and holds onto the connection stream information, so that each TCPSender/Receiver
  * isn't reconstructing the objectstreams and causing corruption exceptions.
  */
-public class ConnectionHandler {
+public class ConnectionMetadata {
     private final ArrayList<SocketStream> connections;
 
 
-    public ConnectionHandler() {
+    public ConnectionMetadata() {
         this.connections = new ArrayList<>();
     }
 
@@ -43,6 +43,10 @@ public class ConnectionHandler {
     public synchronized SocketStream getSocketStream(String hostPort) {
         Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.hostPort.equals(hostPort)).findFirst();
         return server.orElse(null);
+    }
+
+    public synchronized SocketStream getSocketStream(String host, int port) {
+        return getSocketStream(String.format("%s:%d", host, port));
     }
 
 

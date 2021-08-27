@@ -3,11 +3,9 @@ package fileSystem.util;
 import fileSystem.util.metadata.FileMetadata;
 import fileSystem.util.metadata.ServerMetadata;
 
-import java.io.IOException;
 import java.net.Socket;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * This object contains all useful information about the cluster. It is updated by the heartbeats send to and from
@@ -33,17 +31,21 @@ import java.util.Optional;
  * - chunkNumber
  * - ChunkServers holding that file chunk
  */
-public class ClusterInformationHandler {
+public class ClusterMetadataHandler {
     private final ArrayList<ServerMetadata> currentServers;
-    private final ArrayList<FileMetadata> currentFiles;
+    private final Map<String, FileMetadata> currentFiles;
 
-    public ArrayList<FileMetadata> getFiles() {
-        return currentFiles;
+    public Collection<FileMetadata> getFiles() {
+        return currentFiles.values();
     }
 
-    public ClusterInformationHandler() {
+    public FileMetadata getFile(String filePath) {
+        return currentFiles.getOrDefault(filePath, null);
+    }
+
+    public ClusterMetadataHandler() {
         currentServers = new ArrayList<>();
-        currentFiles = new ArrayList<>();
+        currentFiles = new HashMap<>();
     }
 
     public ArrayList<ServerMetadata> getServers() {
@@ -51,10 +53,10 @@ public class ClusterInformationHandler {
     }
 
     public void addFile(String file, int totalChunks, long fileSize) {
-        currentFiles.add(new FileMetadata(file, totalChunks, fileSize));
+        currentFiles.put(file, new FileMetadata(file, totalChunks, fileSize));
     }
 
-    public synchronized void addServer(String serverName, String host, int port, Socket socket) throws IOException {
+    public synchronized void addServer(String serverName, String host, int port, Socket socket) {
         String heartbeatStamp = Instant.now().toString();
         currentServers.add(new ServerMetadata(serverName, host, port, socket, heartbeatStamp));
     }
@@ -73,5 +75,8 @@ public class ClusterInformationHandler {
     public synchronized boolean removeBySocket(Socket socket) {
         return currentServers.remove(getServer(socket));
     }
+
+
+
 
 }

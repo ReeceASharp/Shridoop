@@ -1,26 +1,20 @@
 package fileSystem.node;
 
-import fileSystem.protocol.Event;
+import fileSystem.protocol.*;
 import fileSystem.protocol.events.*;
-import fileSystem.transport.SocketStream;
-import fileSystem.transport.TCPReceiver;
-import fileSystem.transport.TCPServer;
+import fileSystem.transport.*;
 import fileSystem.util.*;
-import fileSystem.util.metadata.FileChunkData;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import fileSystem.util.metadata.*;
+import org.apache.logging.log4j.*;
 
-import java.io.IOException;
-import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Semaphore;
+import java.io.*;
+import java.net.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.*;
 
 import static fileSystem.protocol.Protocol.*;
-import static fileSystem.util.Utils.appendLn;
+import static fileSystem.util.Utils.*;
 
 public class ChunkServer extends Node implements Heartbeat {
     //private static final int SLICE_SIZE = 8192;
@@ -35,32 +29,32 @@ public class ChunkServer extends Node implements Heartbeat {
 
 
     public ChunkServer(String serverName, String homePath) {
+        super();
+
         this.serverName = serverName;
         this.homePath = homePath;
         this.fileHandler = new FileHandler(homePath);
     }
 
     public static void main(String[] args) throws IOException {
+        // Parse commandline args
         final String controllerHost = args[0];
         final int controllerPort = Integer.parseInt(args[1]);
         final int listenPort = Integer.parseInt(args[2]);
         final String serverName = args[3];
         final String homePath = args[4];
 
+        logger.debug(String.format("Listen: %d, serverName: %s, StoragePath: %s", listenPort, serverName, homePath));
 
-        logger.debug(String.format("Listen: %d, serverName: %s, Path: %s, ConnectPort: %d, ConnectHost: %s",
-                listenPort, serverName, homePath, controllerPort, controllerHost));
-
-        //get an object reference to be able to call functions and organize control flow
         ChunkServer server = new ChunkServer(serverName, homePath);
-        server.configure(homePath);
-        //create a server thread to listen to incoming connections
+        server.setup();
+
         Semaphore setupLock = new Semaphore(1);
         setupLock.tryAcquire();
+
         Thread tcpServer = new Thread(new TCPServer(server, listenPort, setupLock));
         tcpServer.start();
 
-        //create the console, this may not be needed for the chunkServer, but could be useful for debugging
         Thread console = new Thread(new ConsoleParser(server));
         console.start();
 
@@ -73,8 +67,8 @@ public class ChunkServer extends Node implements Heartbeat {
         sendRegistration(server, controllerHost, controllerPort);
     }
 
-    private void configure(String homePath) throws IOException {
-        Files.createDirectories(Paths.get(homePath));
+    private void setup() throws IOException {
+        Files.createDirectories(Paths.get(this.homePath));
     }
 
     /**
@@ -97,7 +91,7 @@ public class ChunkServer extends Node implements Heartbeat {
         Socket controllerSocket = new Socket(controllerHost, controllerPort);
 
         SocketStream ss = new SocketStream(controllerSocket);
-        node.connectionHandler.addConnection(ss);
+        node.connectionMetadata.addConnection(ss);
         //create a listener on this new connection to listen for future requests/responses
         Thread receiver = new Thread(new TCPReceiver(node, ss, node.server));
         receiver.start();
@@ -107,105 +101,74 @@ public class ChunkServer extends Node implements Heartbeat {
         node.sendMessage(controllerSocket, e);
     }
 
-    /**
-     * Print out the details of the ChunkServer in a formatted way
-     */
-    private String showConfig() {
-        return String.format("ServerName: '%s', " +
-                             "Path: '%s'%n" +
-                             "Server%s%n",
-                              serverName, homePath, server);
+    public String getServerName() {
+        return serverName;
     }
 
     @Override
-    public void onEvent(Event e, Socket socket) {
-        switch (e.getType()) {
-            // Controller -> ChunkServer
-            case CONTROLLER_REPORTS_REGISTRATION_STATUS:
-                registrationStatus(e);
-                break;
-            case CONTROLLER_REQUESTS_DEREGISTRATION:
-                deregistration(e, socket);
-                break;
-            case CONTROLLER_REPORTS_SHUTDOWN:
-                cleanup();
-                break;
-            case CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT:
-                respondWithStatus(socket);
-                break;
+    protected void associateEvents() {
+        this.eventActions.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
+        this.eventActions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deregistration);
+        this.eventActions.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
+        this.eventActions.put(CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT, this::respondWithStatus);
+        //this.eventActions.put(CHUNK_SERVER_REQUESTS_REPLICATION, this::respondWithStatus);
+        //this.eventActions.put(CHUNK_SERVER_REPORTS_REPLICATION, this::respondWithStatus);
+        this.eventActions.put(CLIENT_REQUESTS_FILE_CHUNK, this::sendFileChunk);
+        this.eventActions.put(NODE_SENDS_FILE_CHUNK, this::fileAdd);
+    }
 
-            // ChunkServer -> ChunkServer
-            case CHUNK_SERVER_REQUESTS_REPLICATION:
-                break;
-            case CHUNK_SERVER_REPORTS_REPLICATION:
-                break;
+    @Override
+    public String help() {
+        return "This is strictly used for development and to see system details locally. " +
+                       "Available commands are shown with 'commands'.";
+    }
 
-            // Client -> ChunkServer
-            case CLIENT_REQUESTS_FILE_CHUNK:
-                sendFileChunk(e, socket);
+    @Override
+    public String intro() {
+        return "Distributed System ChunkServer (DEV ONLY), type " +
+                       "'help' for more details: ";
+    }
+
+    private void registrationStatus(Event e, Socket socket) {
+        ControllerReportsRegistrationStatus response = (ControllerReportsRegistrationStatus) e;
+
+        switch (response.getStatus()) {
+            case RESPONSE_SUCCESS:
+                logger.info("Successfully registered with Controller!");
                 break;
-            // Node -> ClientServer
-            case NODE_SENDS_FILE_CHUNK:
-                fileAdd(e, socket);
+            case RESPONSE_FAILURE:
+                logger.error("Failed to register with Controller.");
                 break;
+            default:
+                logger.error("ERROR: Incorrect message response type received");
         }
+
+    }
+
+    private void deregistration(Event e, Socket socket) {
+        ControllerRequestsDeregistration request = (ControllerRequestsDeregistration) e;
+
+        //TODO: look at ControllerRequestsDeregistration for future feature info
+
+        //logger.debug("Received Deregistration request");
+
+        //respond
+        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
+                getServerPort(), serverName);
+
+        sendMessage(socket, event);
     }
 
     /**
-     * Handles the adding of a file, called either from a Client node, or from another ChunkServer
-     * requesting a replication
-     * @param e  Base event passed in, is actually NodeSendsFileChunk with respective request values
-     * @param socket  The socket the event came in on
+     * Simply responding with the current status of the ChunkServer. For the most part the status shouldn't be
+     * needed until more features are implemented. In the future error-checking/corrupted file chunks could be a status,
+     * but at the moment simply sending a response to the Controller means the ChunkServer is still alive
+     *
+     * @param socket
      */
-    private void fileAdd(Event e, Socket socket) {
-        NodeSendsFileChunk request = (NodeSendsFileChunk) e;
-
-        if (!request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
-            logger.error("SHA HASH DOES NOT MATCH PREVIOUS STAGE.");
-            //TODO: possibly exit method early and send a request back to the node for another file
-            // in which case this will be started again
-
-        }
-
-        System.out.println(String.format("Received new chunk: %s, %d bytes", request.getFileName(),
-                request.getChunkData().length));
-        String fileName = request.getFileName() + request.getChunkNumber();
-        //store the file in the local directory for the ChunkServer
-        fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
-
-        //update the contact details
-
-        ArrayList<String> serversToContact = request.getServersToContact();
-        if (serversToContact.isEmpty()) {
-            logger.debug("Ending.");
-            return;
-        }
-
-        String hostPort = serversToContact.get(0);
-        serversToContact.remove(0);
-
-        // Check if there is already a connection
-        SocketStream socketStream = connectionHandler.getSocketStream(hostPort);
-        if (socketStream == null) {
-            logger.debug("Generating new Connection.");
-            try {
-                String[] tokens = hostPort.split(":");
-                // Open a connection with the chunk server
-                socketStream = new SocketStream(new Socket(tokens[0], Integer.parseInt(tokens[1])));
-                connectionHandler.addConnection(socketStream);
-
-                Thread receiver = new Thread(new TCPReceiver(this, socketStream, server));
-                receiver.start();
-
-                //logger.debug("Opening connection to: " + socketStream);
-            } catch (IOException unknownHostException) {
-                unknownHostException.printStackTrace();
-            }
-        }
-
-        //Can reuse the message, as it's the same data, just with an updated
-        sendMessage(socketStream.socket, request);
-
+    private void respondWithStatus(Event e, Socket socket) {
+        Event event = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS);
+        sendMessage(socket, event);
     }
 
     /**
@@ -225,74 +188,56 @@ public class ChunkServer extends Node implements Heartbeat {
     }
 
     /**
-     * Simply responding with the current status of the ChunkServer. For the most part the status shouldn't be
-     * needed until more features are implemented. In the future error-checking/corrupted file chunks could be a status,
-     * but at the moment simply sending a response to the Controller means the ChunkServer is still alive
+     * Handles the adding of a file, called either from a Client node, or from another ChunkServer
+     * requesting a replication
      *
-     * @param socket
+     * @param e      Base event passed in, is actually NodeSendsFileChunk with respective request values
+     * @param socket The socket the event came in on
      */
-    private void respondWithStatus(Socket socket) {
-        Event event = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS);
-        sendMessage(socket, event);
-    }
+    private void fileAdd(Event e, Socket socket) {
+        NodeSendsFileChunk request = (NodeSendsFileChunk) e;
 
-    private void deregistration(Event e, Socket socket) {
-        ControllerRequestsDeregistration request = (ControllerRequestsDeregistration) e;
+        logger.debug(String.format("Received new chunk: %s, %d bytes", request.getFileName(),
+                request.getChunkData().length));
 
-        //TODO: look at ControllerRequestsDeregistration for future feature info
+        String fileName = request.getFileName() + request.getChunkNumber();
 
-        //logger.debug("Received Deregistration request");
-
-        //respond
-        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
-                getServerPort(), serverName);
-
-        sendMessage(socket, event);
-    }
-
-    private void registrationStatus(Event e) {
-        ControllerReportsRegistrationStatus response = (ControllerReportsRegistrationStatus) e;
-
-        switch (response.getStatus()) {
-            case RESPONSE_SUCCESS:
-                logger.info("ChunkServer successfully registered and setup with Controller");
-
-                break;
-            case RESPONSE_FAILURE:
-                logger.error("ChunkServer failed to register with Controller");
-                break;
-            default:
-                logger.error("ERROR: incorrect message response type received");
+        if (!request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
+            logger.error("Data does match origin. Requesting a new chunk.");
+            //TODO: possibly exit method early and send a request back to the node for another file
+            // in which case this will be started again
         }
 
-    }
 
-    private String listChunks() {
-        StringBuilder sb = new StringBuilder();
-        appendLn(sb, "Home path: " + homePath);
-        appendLn(sb, "***********************");
-        for (FileChunkData smd : fileHandler.getFileChunks()) {
-            appendLn(sb, smd.toString());
+        //store the file in the local directory for the ChunkServer
+        fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
+
+        //update the contact details
+
+        ArrayList<Pair<String, Integer>> serversToContact = request.getServersToContact();
+        if (serversToContact.isEmpty()) {
+            logger.debug("Completed Replication of file chunk: " + fileName);
+            return;
         }
-        appendLn(sb, "***********************");
-        return sb.toString();
+
+        //TODO: Fetch the full address of the next ChunkServer, not just the port. This means the request should contain
+        // a datastructure that holds more metadata
+        Pair<String, Integer> hostPort = serversToContact.remove(0);
+
+        // Check if there is already a connection
+        SocketStream socketStream = connectionMetadata.getSocketStream(hostPort.getLeft(), hostPort.getRight());
+        if (socketStream == null) {
+            logger.debug("Generating new Connection.");
+            socketStream = connect(hostPort.getLeft(), hostPort.getRight());
+        }
+
+        //Can reuse the message, as it's the same data, just with an updated
+        sendMessage(socketStream.socket, request);
     }
 
-    @Override
-    public String help() {
-        return "This is strictly used for development and to see system details locally. " +
-                "Available commands are shown with 'commands'.";
-    }
-
-    @Override
-    public String intro() {
-        return "Distributed System ChunkServer (DEV ONLY), type " +
-                "'help' for more details: ";
-    }
-
-
-    public String getServerName() {
-        return serverName;
+    private void handleShutdown(Event e, Socket socket) {
+        // Wrapping in a EventAction so that it can be called when the server controller requests a shutdown
+        cleanup();
     }
 
     @Override
@@ -308,13 +253,43 @@ public class ChunkServer extends Node implements Heartbeat {
     }
 
     @Override
-    public Map<String, Command> getCommandMap() {
+    public Map<String, Command> getCommandList() {
         Map<String, Command> commandMap = new HashMap<>();
 
         commandMap.put("list-files", userInput -> listChunks());
         commandMap.put("config", userInput -> showConfig());
 
         return commandMap;
+    }
+
+    private String listChunks() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, "Home path: " + homePath);
+        appendLn(sb, "***********************");
+        for (FileChunkData smd : fileHandler.getFileChunks())
+            appendLn(sb, smd.toString());
+        appendLn(sb, "***********************");
+        return sb.toString();
+    }
+
+    /**
+     * Print out the details of the ChunkServer in a formatted way
+     */
+    private String showConfig() {
+        return String.format("ServerName: '%s', " +
+                                     "Path: '%s'%n" +
+                                     "Server%s%n",
+                serverName, homePath, server);
+    }
+
+    @Override
+    protected void cacheInfo() {
+
+    }
+
+    @Override
+    protected void updateFromCache() {
+
     }
 
     @Override
@@ -325,11 +300,10 @@ public class ChunkServer extends Node implements Heartbeat {
 
         // get controller socket, because that is always the initial connection used, it's
         // the first index in the known connection list
-        sendMessage(connectionHandler.getSocketStream(0).socket, event);
+        sendMessage(connectionMetadata.getSocketStream(0).socket, event);
     }
 
     private Event constructMajorHeartbeat() {
-
 
 
         return null;

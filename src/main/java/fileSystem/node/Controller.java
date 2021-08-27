@@ -1,75 +1,70 @@
 package fileSystem.node;
 
-import fileSystem.util.*;
-import fileSystem.protocol.Event;
+import fileSystem.protocol.*;
 import fileSystem.protocol.events.*;
-import fileSystem.transport.TCPServer;
-import fileSystem.util.metadata.FileMetadata;
-import fileSystem.util.metadata.ServerMetadata;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import fileSystem.transport.*;
+import fileSystem.util.*;
+import fileSystem.util.metadata.*;
+import org.apache.logging.log4j.*;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
+import java.util.concurrent.*;
+import java.util.stream.*;
 
 import static fileSystem.protocol.Protocol.*;
-import static fileSystem.util.Utils.appendLn;
+import static fileSystem.util.Utils.*;
+
 
 public class Controller extends Node implements Heartbeat {
+
+
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
-    //properties
-    private static final int REPLICATION_FACTOR = 3;
+    //Properties
+    private static final int REPLICATION_FACTOR = Integer.parseInt((String)properties.get("REPLICATION_FACTOR"));
     private final int port;
-    private final ClusterInformationHandler clusterHandler;
 
-    //control flow
+    // Metadata storage
+    private final ClusterMetadataHandler clusterHandler;
+
+    //Control flow
     private boolean isActive;
     private HeartbeatHandler timer;
 
-    // Synchronization for startup and shutdown
+    //Start - Stop synchronization
     private CountDownLatch activeChunkServers;
 
     public Controller(int port) {
-        isActive = false;
+        super();
+
+        this.isActive = false;
         this.port = port;
-        clusterHandler = new ClusterInformationHandler();
+        this.clusterHandler = new ClusterMetadataHandler();
     }
 
     public static void main(String[] args) throws UnknownHostException {
-
-        // Inputs (Eventually)
-        boolean DEBUG = true;
-        int port = Integer.parseInt(args[0]);
-
-        //setup debug mode logging if parameter was passed
-        if (DEBUG)
+        if (Node.properties.get("DEBUG") == "true")
             LogConfiguration.debug();
+        logger.info("Debug: " + Node.properties.get("DEBUG"));
 
 
-        //get the hostname and IP address
-        InetAddress ip = InetAddress.getLocalHost();
-        String host = ip.getHostName();
-
-        logger.info(String.format("IP: %s, Host: %s%n", ip.getHostAddress(), host));
-
+        int port = Integer.parseInt(args[0]);
         Controller controller = new Controller(port);
-        controller.configure();
+        controller.setup();
 
-        // create a server thread to listen to incoming connections, the semaphore isn't currently used here, only in
-        // the ChunkServer, but will if the controller needs to send off a connection upon startup
+        logger.info(String.format("IP: %s", controller.hostname()));
 
-        Thread tcpServer = new Thread(new TCPServer(controller, port, null));
-        tcpServer.start();
+    }
 
-        //create the console
-        Thread console = new Thread(new ConsoleParser(controller));
-        console.start();
+    private void setup() {
+        // Builds components outside of the constructor that require a reference to the parent to function
+        this.timer = new HeartbeatHandler(5, 9, this);
+        this.server = new TCPServer(this, port, null);
+        this.console = new ConsoleParser(this);
+
+        new Thread(this.server).start();
+        new Thread(this.console).start();
     }
 
     @Override
@@ -83,20 +78,42 @@ public class Controller extends Node implements Heartbeat {
         }
     }
 
-    private void configure() {
-        // Note: as this class uses a reference to the controller, it must be constructed after the Controller
-        // constructor to make sure it's fully setup
-        timer = new HeartbeatHandler(5, 9, this);
+    @Override
+    protected void associateEvents() {
+        // ChunkServer -> Controller
+        this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
+        this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::updateMajorbeat);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::updateMinorbeat);
+        // Client -> Controller
+        this.eventActions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
+        this.eventActions.put(CLIENT_REQUESTS_FILE_DELETE, this::fileDelete);
+        this.eventActions.put(CLIENT_REQUESTS_FILE, this::fileGet);
+        this.eventActions.put(CLIENT_REQUESTS_FILE_LIST, this::fileList);
+        //this.eventActions.put(CLIENT_REQUESTS_CHUNK_SERVER_METADATA, this::chunkServerData);
     }
 
-    private String listClusterFiles() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("********************");
+    @Override
+    public String help() {
+        return "Controller: This is the driver that organizes all communication for" +
+                       "the cluster. Setup of the cluster is done here, and clients all communicate " +
+                       "with this driver in order to store, update, or remove files. Available commands " +
+                       "are shown with 'commands'.";
+    }
 
-        for (FileMetadata fmd : clusterHandler.getFiles())
-            sb.append(fmd);
+    //private ArrayList<>
 
-        return sb.toString();
+    @Override
+    public String intro() {
+        return "Distributed System Controller: Enter 'help' for more information on configuration " +
+                       "or 'init' to start up the cluster";
+    }
+
+    @Override
+    public void cleanup() {
+        if (isActive)
+            stopChunkServers();
+        server.cleanup();
     }
 
     private String stopChunkServers() {
@@ -128,216 +145,25 @@ public class Controller extends Node implements Heartbeat {
     }
 
     @Override
-    public void onEvent(Event e, Socket socket) {
-        try {
-            switch (e.getType()) {
-                // ChunkServer -> Controller
-                case CHUNK_SERVER_REQUESTS_REGISTRATION:
-                    chunkServerRegistration(e, socket);
-                    break;
-                case CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS:
-                    deregistrationResponse(e, socket);
-                    break;
-                case CHUNK_SERVER_SENDS_MINOR_HEARTBEAT:
-                    updateMajorbeat(e, socket);
-                    break;
-                case CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT:
-                    updateMinorbeat(e, socket);
-                    break;
-                // Client -> Controller
-                case CLIENT_REQUESTS_FILE_ADD:
-                    fileAdd(e, socket);
-                case CLIENT_REQUESTS_FILE_DELETE:
-                    fileDelete(e, socket);
-                    break;
-                case CLIENT_REQUESTS_FILE:
-                    fileGet(e, socket);
-                    break;
-                case CLIENT_REQUESTS_FILE_LIST:
-                    fileList(e, socket);
-                    break;
-                case CLIENT_REQUESTS_CHUNK_SERVER_METADATA:
-                    break;
-            }
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-
-    }
-
-
-    private void updateMinorbeat(Event e, Socket socket) {
-        ChunkServerSendsMinorHeartbeat heartbeat = (ChunkServerSendsMinorHeartbeat) e;
-
-    }
-
-
-    private void updateMajorbeat(Event e, Socket socket) {
-        ChunkServerSendsMajorHeartbeat heartbeat = (ChunkServerSendsMajorHeartbeat) e;
-
-
-
-    }
-
-    /**
-     * Packages and sends off the current file information the Controller is keeping to the client
-     *
-     * @param e      Event that contains a ClientRequestsFileList, contains an optional path parameter to search through
-     * @param socket
-     */
-    private void fileList(Event e, Socket socket) {
-        logger.debug("Controller received FileList request");
-        ClientRequestsFileList request = (ClientRequestsFileList) e;
-
-        //TODO: logic to handle getting the files in the system, or under the optional path
-        ArrayList<String> files = new ArrayList<>();
-
-        Event response = new ControllerReportsFileList(RESPONSE_SUCCESS, files);
-        sendMessage(socket, response);
-    }
-
-    /**
-     * Respond with a current list of ChunkServers containing all different chunks of the file
-     *
-     * @param e      The event containing the file the client wants
-     * @param socket
-     */
-    private void fileGet(Event e, Socket socket) {
-        // Look at current list of files in system, and respond with the list of servers associated with the requested
-        // file, or respond with a negative status in the case of an absence of that file
-
-        //TODO: Logic to check for file existence + get servers hosting chunks of said file
-
-        Event response = new ControllerReportsChunkGetList(RESPONSE_FAILURE, 0);
-        sendMessage(socket, response);
-    }
-
-    /**
-     * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
-     *
-     * @param e      the event containing the file that the client wants deleted
-     * @param socket
-     */
-    private void fileDelete(Event e, Socket socket) {
-        //See if file exists in the system, and send out requests to delete it, if it exists
-
-        //TODO: Logic to check for file existence + get servers hosting chunks of said file
-
-        //Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
-        //sendMessage(socket, response);
-    }
-
-    /**
-     * Respond with a current list of ChunkServers to open a connection to send chunks
-     *
-     * @param e      the event that contains the file being requested to be added
-     * @param socket
-     */
-    private void fileAdd(Event e, Socket socket) {
-        ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
-        logger.debug(String.format("Client Requests to add file: %s, Size: %d, Chunks: %d", request.getFile(),
-                request.getFileSize(), request.getNumberOfChunks()));
-
-        ArrayList<ServerMetadata> serverList = clusterHandler.getServers();
-        ArrayList<ContactList> chunkDestinations = new ArrayList<>();
-        ArrayList<String> selectedServers = new ArrayList<>();
-
-        clusterHandler.addFile(request.getFile(), request.getNumberOfChunks(), request.getFileSize());
-
-        //for each chunk, generate a random list of servers to contact
-        for (int i = 1; i <= request.getNumberOfChunks(); i++) {
-
-            //Generate a random list of distinct ints from 0 to n ChunkServers, then grab k amount needed for replication
-            List<Integer> randomServerIndexes = new Random().ints(0, serverList.size())
-                    .distinct().limit(REPLICATION_FACTOR).boxed().collect(Collectors.toList());
-            //convert to actual server contact details and save
-
-            for (Integer serverIndex : randomServerIndexes)
-                selectedServers.add(String.format("%s:%d", serverList.get(serverIndex).host,
-                        serverList.get(serverIndex).port));
-            //add to the running list of chunk destinations and reset for the next chunk
-            chunkDestinations.add(new ContactList(i, new ArrayList<>(selectedServers)));
-            selectedServers.clear();
-        }
-
-        Event response = new ControllerReportsChunkAddList(RESPONSE_SUCCESS,
-                request.getFile(), chunkDestinations);
-        sendMessage(socket, response);
-    }
-
-    private void deregistrationResponse(Event e, Socket socket) {
-        ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
-
-        //create the relevant object to find using the overloaded equals operator for ChunkData
-        boolean removed;
-        synchronized (clusterHandler.getServers()) {
-            removed = clusterHandler.removeBySocket(socket);
-        }
-
-        if (removed)
-            logger.info(String.format("%s successfully showdown.", response.getName()));
-        else
-            logger.error(String.format("%s unsuccessfully showdown.", response.getName()));
-
-        // confirm the shutdown request
-        Event event = new ControllerReportsShutdown();
-        sendMessage(socket, event);
-
-        activeChunkServers.countDown();
-    }
-
-    private void chunkServerRegistration(Event e, Socket socket) throws IOException {
-        ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
-
-        clusterHandler.addServer(request.getServerName(), request.getHost(),
-                request.getPort(), socket);
-
-        logger.debug("Received Registration Request: " + socket);
-        Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
-        sendMessage(socket, event);
-    }
-
-    @Override
-    public String help() {
-        return "Controller: This is the driver that organizes all communication for" +
-                "the cluster. Setup of the cluster is done here, and clients all communicate " +
-                "with this driver in order to store, update, or remove files. Available commands " +
-                "are shown with 'commands'.";
-    }
-
-    @Override
-    public String intro() {
-        return "Distributed System Controller: Enter 'help' for more information on configuration " +
-                "or 'init' to start up the cluster";
-    }
-
-    @Override
-    public void cleanup() {
-        if (isActive)
-            stopChunkServers();
-        server.cleanup();
-    }
-
-    @Override
-    public Map<String, Command> getCommandMap() {
+    public Map<String, Command> getCommandList() {
         Map<String, Command> commandMap = new HashMap<>();
+
         commandMap.put("files", userInput -> listClusterFiles());
-        commandMap.put("initialize", userInput -> initialize());
+        commandMap.put("init", userInput -> initialize());
         commandMap.put("stop", userInput -> stopChunkServers());
-        commandMap.put("config", userInput -> showConfig());
+        commandMap.put("show-config", userInput -> showConfig());
+        commandMap.put("file-info", this::fileInfo);
+
         return commandMap;
     }
 
-
-    /**
-     * Returns all information currently loaded in regarding the configuration of the cluster
-     */
-    public String showConfig() {
+    private String listClusterFiles() {
         StringBuilder sb = new StringBuilder();
-        appendLn(sb, "**** NODES ****");
-        appendLn(sb, String.format("Nodes: %d", clusterHandler.getServers().size()));
-        for (ServerMetadata server : clusterHandler.getServers())
-            appendLn(sb, server.toString());
+        appendLn(sb, "**** FILES ****");
+
+        for (FileMetadata fmd : clusterHandler.getFiles())
+            appendLn(sb, fmd.toString());
+
         appendLn(sb, " ************* ");
 
         return sb.toString();
@@ -368,5 +194,174 @@ public class Controller extends Node implements Heartbeat {
             e.printStackTrace();
         }
          */
+    }
+
+    /**
+     * Returns all information currently loaded in regarding the configuration of the cluster
+     */
+    public String showConfig() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, "**** NODES ****");
+        appendLn(sb, String.format("Nodes: %d", clusterHandler.getServers().size()));
+        for (ServerMetadata server : clusterHandler.getServers())
+            appendLn(sb, server.toString());
+        appendLn(sb, " ************* ");
+
+        return sb.toString();
+    }
+
+    private String fileInfo(String userInput) {
+        String[] tokens = userInput.split(" ");
+
+        FileMetadata fmd = this.clusterHandler.getFile(tokens[1]);
+        if (fmd != null)
+            return fmd.toString();
+
+        return "File not in system.";
+    }
+
+    @Override
+    protected void cacheInfo() {
+
+
+    }
+
+    @Override
+    protected void updateFromCache() {
+
+    }
+
+    private void chunkServerRegistration(Event e, Socket socket) {
+        ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
+
+        clusterHandler.addServer(request.getServerName(), request.getHost(),
+                request.getPort(), socket);
+
+        //logger.debug("Received Registration Request: " + socket);
+        Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
+        sendMessage(socket, event);
+    }
+
+    private void deregistrationResponse(Event e, Socket socket) {
+        ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
+
+        //create the relevant object to find using the overloaded equals operator for ChunkData
+        boolean removed;
+        synchronized (clusterHandler.getServers()) {
+            removed = clusterHandler.removeBySocket(socket);
+        }
+
+        if (removed)
+            logger.info(String.format("%s successfully showdown.", response.getName()));
+        else
+            logger.error(String.format("%s unsuccessfully showdown.", response.getName()));
+
+        // confirm the shutdown request
+        Event event = new ControllerReportsShutdown();
+        sendMessage(socket, event);
+
+        activeChunkServers.countDown();
+    }
+
+    private void updateMajorbeat(Event e, Socket socket) {
+        ChunkServerSendsMajorHeartbeat heartbeat = (ChunkServerSendsMajorHeartbeat) e;
+
+
+    }
+
+    private void updateMinorbeat(Event e, Socket socket) {
+        ChunkServerSendsMinorHeartbeat heartbeat = (ChunkServerSendsMinorHeartbeat) e;
+
+    }
+
+    /**
+     * Respond with a current list of ChunkServers to open a connection to send chunks
+     *
+     * @param e      the event that contains the file being requested to be added
+     * @param socket
+     */
+    private void fileAdd(Event e, Socket socket) {
+        ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
+        logger.debug(String.format("Client Requests to add file: %s, Size: %d, Chunks: %d", request.getFile(),
+                request.getFileSize(), request.getNumberOfChunks()));
+
+        ArrayList<ServerMetadata> serverList = clusterHandler.getServers();
+        ArrayList<ContactList> chunkDestinations = new ArrayList<>();
+        ArrayList<Pair<String, Integer>> selectedServers = new ArrayList<>();
+
+        clusterHandler.addFile(request.getFile(), request.getNumberOfChunks(), request.getFileSize());
+
+        //for each chunk, generate a random list of servers to contact
+        for (int i = 1; i <= request.getNumberOfChunks(); i++) {
+
+            //Generate a random list of distinct ints from 0 to n ChunkServers, then grab k amount needed for replication
+            List<Integer> randomServerIndexes = new Random().ints(0, serverList.size())
+                                                        .distinct()
+                                                        .limit(REPLICATION_FACTOR)
+                                                        .boxed()
+                                                        .collect(Collectors.toList());
+
+            for (Integer serverIndex : randomServerIndexes) {
+                String host = serverList.get(serverIndex).host;
+                int port = serverList.get(serverIndex).port;
+                selectedServers.add(new Pair(host, port));
+            }
+            //add to the running list of chunk destinations and reset for the next chunk
+            chunkDestinations.add(new ContactList(i, new ArrayList<>(selectedServers)));
+            selectedServers.clear();
+        }
+
+        Event response = new ControllerReportsChunkAddList(RESPONSE_SUCCESS,
+                request.getFile(), chunkDestinations);
+        sendMessage(socket, response);
+    }
+
+    /**
+     * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
+     *
+     * @param e      the event containing the file that the client wants deleted
+     * @param socket
+     */
+    private void fileDelete(Event e, Socket socket) {
+        //See if file exists in the system, and send out requests to delete it, if it exists
+
+        //TODO: Logic to check for file existence + get servers hosting chunks of said file
+
+        //Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
+        //sendMessage(socket, response);
+    }
+
+    /**
+     * Respond with a current list of ChunkServers containing all different chunks of the file
+     *
+     * @param e      The event containing the file the client wants
+     * @param socket
+     */
+    private void fileGet(Event e, Socket socket) {
+        // Look at current list of files in system, and respond with the list of servers associated with the requested
+        // file, or respond with a negative status in the case of an absence of that file
+
+        //TODO: Logic to check for file existence + get servers hosting chunks of said file
+
+        Event response = new ControllerReportsChunkGetList(RESPONSE_FAILURE, 0);
+        sendMessage(socket, response);
+    }
+
+    /**
+     * Packages and sends off the current file information the Controller is keeping to the client
+     *
+     * @param e      Event that contains a ClientRequestsFileList, contains an optional path parameter to search through
+     * @param socket
+     */
+    private void fileList(Event e, Socket socket) {
+        logger.debug("Controller received FileList request");
+        ClientRequestsFileList request = (ClientRequestsFileList) e;
+
+        //TODO: logic to handle getting the files in the system, or under the optional path
+        ArrayList<String> files = new ArrayList<>();
+
+
+        Event response = new ControllerReportsFileList(RESPONSE_SUCCESS, files);
+        sendMessage(socket, response);
     }
 }

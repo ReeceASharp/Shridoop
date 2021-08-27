@@ -30,4 +30,12 @@ public class ControllerReportsFileList implements Event {
     public int getStatus() {
         return status;
     }
+
+    @Override
+    public String toString() {
+        return "ControllerReportsFileList{" +
+                       "status=" + status +
+                       ", files=" + files +
+                       '}';
+    }
 }
