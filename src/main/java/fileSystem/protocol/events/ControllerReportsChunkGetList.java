@@ -30,4 +30,12 @@ public class ControllerReportsChunkGetList implements Event {
     public int getType() {
         return type;
     }
+
+    @Override
+    public String toString() {
+        return "ControllerReportsChunkGetList{" +
+                       "status=" + status +
+                       ", numberOfChunks=" + numberOfChunks +
+                       '}';
+    }
 }

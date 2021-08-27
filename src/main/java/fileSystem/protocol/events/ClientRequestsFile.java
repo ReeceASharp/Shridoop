@@ -23,4 +23,11 @@ public class ClientRequestsFile implements Event {
     public String getFile() {
         return file;
     }
+
+    @Override
+    public String toString() {
+        return "ClientRequestsFile{" +
+                       "file='" + file + '\'' +
+                       '}';
+    }
 }

@@ -1,6 +1,6 @@
 package fileSystem.util;
 
-import java.io.File;
+import java.io.*;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -40,6 +40,17 @@ public class FileChunker {
             formatter.format("%02x", b);
         }
         return formatter.toString();
+    }
+
+    public static byte[] buildChunk(byte[] buffer, BufferedInputStream bis) {
+        try {
+            int bytesRead = bis.read(buffer);
+            byte[] chunkBytes = new byte[bytesRead];
+            System.arraycopy(buffer, 0, chunkBytes, 0, bytesRead);
+            return chunkBytes;
+        } catch (IOException e) {
+            return null;
+        }
     }
 
 }

@@ -18,13 +18,14 @@ public class Client extends Node {
 
     private final String controllerHost;
     private final int controllerPort;
-    private Socket controllerSocket;
     private final Map<String, String> intermediateFilePaths;
+    private SocketStream controllerSocket;
 
     public Client(String host, int port) {
+        super();
+
         this.controllerHost = host;
         this.controllerPort = port;
-
         this.intermediateFilePaths = new HashMap<>();
     }
 
@@ -34,14 +35,28 @@ public class Client extends Node {
         int port = Integer.parseInt(args[1]);
 
         Client client = new Client(host, port);
+        client.setup();
+    }
 
-        //create a server thread to listen to incoming connections
-        Thread tcpServer = new Thread(new TCPServer(client, 0, null));
-        tcpServer.start();
+    private void setup() {
+        this.server = new TCPServer(this, 0, null);
+        this.console = new ConsoleParser(this);
 
-        //Console parser
-        Thread console = new Thread(new ConsoleParser(client));
-        console.start();
+        new Thread(this.server).start();
+        new Thread(this.console).start();
+
+        controllerSocket = connect(controllerHost, controllerPort);
+    }
+
+    @Override
+    protected void associateEvents() {
+        // Controller -> Client
+        this.eventActions.put(CONTROLLER_REPORTS_FILE_LIST, this::displayStoredFiles);
+        this.eventActions.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
+        this.eventActions.put(CONTROLLER_REPORTS_CHUNK_ADD_LIST, this::sendChunks);
+        this.eventActions.put(CONTROLLER_REPORTS_FILE_REMOVE_STATUS, this::deleteStatus);
+        // ChunkServer -> Client
+        this.eventActions.put(CHUNK_SERVER_SENDS_FILE_CHUNK, this::displayStoredFiles);
     }
 
     @Override
@@ -57,106 +72,116 @@ public class Client extends Node {
     }
 
     @Override
-    public void onEvent(Event e, Socket socket) {
-        switch (e.getType()) {
-            // Controller -> Client
-            case CONTROLLER_REPORTS_FILE_LIST:
-                displayStoredFiles(e);
-                break;
-            case CONTROLLER_REPORTS_CHUNK_GET_LIST:
-                receiveChunkFetchList(e);
-                break;
-            case CONTROLLER_REPORTS_CHUNK_ADD_LIST:
-                receiveChunkAddList(e);
-                break;
-            case CONTROLLER_REPORTS_FILE_REMOVE_STATUS:
-                deleteStatus(e);
-                break;
-
-            // ChunkServer -> Client
-            case CHUNK_SERVER_SENDS_FILE_CHUNK:
-                break;
-        }
-
+    public void cleanup() {
+        server.cleanup();
     }
 
-    private void displayStoredFiles(Event e) {
+    @Override
+    public Map<String, Command> getCommandList() {
+        Map<String, Command> commandList = new HashMap<>();
+
+        commandList.put("add", this::addFile);
+        commandList.put("delete", this::deleteFile);
+        commandList.put("get", this::getFile);
+        commandList.put("list-files", this::listFile);
+
+        return commandList;
+    }
+
+    @Override
+    protected void cacheInfo() {
+        // No info to cache
+    }
+
+    @Override
+    protected void updateFromCache() {
+        // No info to fetch
+    }
+
+    private String addFile(String userInput) {
+        String[] tokens = userInput.split(" ");
+
+        String cloudPath = tokens[2];
+        Path filePath = Paths.get(tokens[1]).toAbsolutePath().normalize();
+        int numOfChunks = FileChunker.getChunkNumber(filePath);
+        long fileSize = FileChunker.getFileSize(filePath);
+
+        // Save path so async response can find relevant file, kinda jank
+        this.intermediateFilePaths.put(cloudPath, filePath.toString());
+
+        sendMessage(controllerSocket, new ClientRequestsFileAdd(cloudPath, numOfChunks, fileSize));
+
+        return String.format("Add file: '%s', local: %s, size: %d, chunks: %d.", cloudPath, filePath, fileSize, numOfChunks);
+    }
+
+    private String deleteFile(String userInput) {
+        String[] tokens = userInput.split(" ");
+        String fileName = "";
+        sendMessage(controllerSocket, new ClientRequestsFileDelete(tokens[1]));
+        return String.format("Delete file: '%s'.", fileName);
+    }
+
+    private String getFile(String userInput) {
+        String fileName = "";
+        String[] tokens = userInput.split(" ");
+        sendMessage(controllerSocket, new ClientRequestsFile(tokens[1]));
+        return String.format("Get file: '%s'.", fileName);
+    }
+
+    private String listFile(String userInput) {
+        String[] tokens = userInput.split(" ");
+        sendMessage(controllerSocket, new ClientRequestsFileList(tokens[0]));
+        return "Retrieving System file list.";
+    }
+
+    private void displayStoredFiles(Event e, Socket socket) {
         ControllerReportsFileList response = (ControllerReportsFileList) e;
 
         if (response.getStatus() == RESPONSE_SUCCESS) {
             System.out.println("**** Files **** ");
-            for (String file : response.getFiles()) {
+            for (String file : response.getFiles())
                 System.out.println(file);
-            }
             System.out.println("  ************  ");
-        } else if (response.getStatus() == RESPONSE_FAILURE) {
+        } else if (response.getStatus() == RESPONSE_FAILURE)
             System.out.println("Failure to handle list query.");
-        }
     }
 
-    private void receiveChunkFetchList(Event e) {
+    private void fetchChunks(Event e, Socket socket) {
         ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
 
         //TODO: handle logic of querying the ChunkServers
+
+        // For each chunk in the fetchlist, pick a random server and send a
     }
 
-    private void receiveChunkAddList(Event e) {
+    private void sendChunks(Event e, Socket socket) {
         ControllerReportsChunkAddList response = (ControllerReportsChunkAddList) e;
-        logger.debug("Received list, Sending out file partitions to chunkServers.");
-
-        // Setup file input streams to handle the chunk creation of the file,
-
 
         try (FileInputStream fis = new FileInputStream(fetchFilePath(response.getFile()));
              BufferedInputStream bis = new BufferedInputStream(fis)) {
-            int bytesRead;
-            //maximum size of chunk
+
             byte[] buffer = new byte[CHUNK_SIZE];
 
-            // Dynamically fetch data from the file in chunksize increments, we already calculated and passed the
-            // # of chunks to the Controller, and it responded with a set of servers for each chunk to be sent to
             for (ContactList chunkToSend : response.getChunkDestinations()) {
-                // Get chunk data, and copy into a dynamically sized array to minimize chunk size
-                // this is only really useful for the last chunk of a large file, or the only
-                // chunk of a small file
-                bytesRead = bis.read(buffer);
-                byte[] bytesToSend = new byte[bytesRead];
-                System.arraycopy(buffer, 0, bytesToSend, 0, bytesRead);
-                logger.debug(String.format("Bytes Read: %d", bytesRead));
+                byte[] bytesToSend = FileChunker.buildChunk(buffer, bis);
 
                 //calculate initial hash, so it can be verified upon reaching its destination
                 String shaHash = FileChunker.getChunkHash(bytesToSend);
 
-
                 // Get the server at the front, the list is generated in a random order at the Controller,
                 // so there's no reason to use further randomness
-                ArrayList<String> serverList = chunkToSend.getServersToContact();
-                String hostPort = serverList.get(0);
-                // Remove it from the list as it's the one being contacted
-                serverList.remove(0);
+                Pair<String, Integer> hostPort = chunkToSend.getServersToContact().remove(0);
 
-                // TODO: refactor stream generation to be inside of the messageSend
-                // Check if there is already a connection
-                SocketStream socketStream = connectionHandler.getSocketStream(hostPort);
-                if (socketStream == null) {
-                    try {
-                        String[] tokens = hostPort.split(":");
-                        // Open a connection with the chunk server
-                        socketStream = new SocketStream(new Socket(tokens[0], Integer.parseInt(tokens[1])));
-                        connectionHandler.addConnection(socketStream);
+                SocketStream socketStream = connectionMetadata.getSocketStream(hostPort.getLeft(), hostPort.getRight());
+                if (socketStream == null)
+                    socketStream = connect(hostPort.getLeft(), hostPort.getRight());
 
-                        Thread receiver = new Thread(new TCPReceiver(this, socketStream, server));
-                        receiver.start();
-
-                        //logger.debug("Opening connection to: " + socketStream);
-                    } catch (IOException unknownHostException) {
-                        unknownHostException.printStackTrace();
-                    }
-                }
-
-                NodeSendsFileChunk chunkSend = new NodeSendsFileChunk(response.getFile(),
-                        chunkToSend.getChunkNumber(), bytesToSend, shaHash, serverList);
-                sendMessage(socketStream.socket, chunkSend);
+                sendMessage(socketStream, new NodeSendsFileChunk(
+                        response.getFile(),
+                        chunkToSend.getChunkNumber(),
+                        bytesToSend,
+                        shaHash,
+                        chunkToSend.getServersToContact()));
             }
         } catch (IOException fileNotFoundException) {
             fileNotFoundException.printStackTrace();
@@ -168,7 +193,7 @@ public class Client extends Node {
      *
      * @param e The event to be converted to ControllerReportsFileDeleteStatus
      */
-    private void deleteStatus(Event e) {
+    private void deleteStatus(Event e, Socket socket) {
         //ControllerReportsFileDeleteStatus response = (ControllerReportsFileDeleteStatus) e;
 //
 //        switch (response.getStatus()) {
@@ -182,82 +207,6 @@ public class Client extends Node {
 
     private String fetchFilePath(String cloudPath) {
         return intermediateFilePaths.get(cloudPath);
-    }
-
-    @Override
-    public void cleanup() {
-        server.cleanup();
-    }
-
-    @Override
-    public Map<String, Command> getCommandMap() {
-        Map<String, Command> commandMap = new HashMap<>();
-
-        commandMap.put("add", this::addFile);
-        commandMap.put("delete", this::deleteFile);
-        commandMap.put("get", this::getFile);
-        commandMap.put("list-files", this::listFile);
-
-        return commandMap;
-    }
-
-    private String addFile(String userInput) {
-        String[] tokens = userInput.split(" ");
-
-        String cloudPath = tokens[2];
-        Path filePath = Paths.get(tokens[1]).toAbsolutePath().normalize();
-        int numOfChunks = FileChunker.getChunkNumber(filePath);
-        long fileSize = FileChunker.getFileSize(filePath);
-
-        this.intermediateFilePaths.put(cloudPath, filePath.toString());
-
-        request(new ClientRequestsFileAdd(cloudPath, numOfChunks, fileSize));
-
-        return String.format("Add file: '%s', local: %s, size: %d, chunks: %d.", cloudPath, filePath, fileSize, numOfChunks);
-    }
-
-    private String deleteFile(String userInput) {
-        String[] tokens = userInput.split(" ");
-        String fileName = "";
-        request(new ClientRequestsFileDelete(tokens[1]));
-        return String.format("Delete file: '%s'.", fileName);
-    }
-
-    private String getFile(String userInput) {
-        String fileName = "";
-        String[] tokens = userInput.split(" ");
-        request(new ClientRequestsFile(tokens[1]));
-
-        return String.format("Get file: '%s'.", fileName);
-    }
-
-    private String listFile(String userInput) {
-        String[] tokens = userInput.split(" ");
-        request(new ClientRequestsFileList(tokens[0]));
-
-        return "Retrieving File-list metadata.";
-    }
-
-    private void request(Event event) {
-        try {
-            if (controllerSocket == null) {
-
-                controllerSocket = new Socket(controllerHost, controllerPort);
-                SocketStream ss = new SocketStream(controllerSocket);
-                connectionHandler.addConnection(ss);
-
-                //create a listener on this new connection to listen for future responses
-                Thread receiver = new Thread(new TCPReceiver(this, ss, server));
-                receiver.start();
-            }
-            logger.debug("Sending request");
-            //send it off to the Controller to respond
-            sendMessage(controllerSocket, event);
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
 }

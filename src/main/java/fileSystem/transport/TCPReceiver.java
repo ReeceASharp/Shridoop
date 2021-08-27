@@ -27,8 +27,6 @@ public class TCPReceiver implements Runnable {
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
-
-
         // add reference to TCPServer to allow it to keep track of all current receiving threads for
         // this node and clean them up when exiting
         //server.addConnection(this);
@@ -53,6 +51,7 @@ public class TCPReceiver implements Runnable {
                     event = (Event) inStream.readObject();
                 }
                 //pass it along to the receiving node to handle
+                logger.debug("Received Message: " + event.toString());
                 node.onEvent(event, socketStream.socket);
 
             } catch (EOFException eof) {
@@ -71,7 +70,7 @@ public class TCPReceiver implements Runnable {
                 e.printStackTrace();
             }
         }
-        logger.debug("TCPReceiver Exiting: " + socketStream.socket);
+        logger.debug("Exiting: " + socketStream.socket);
     }
 
     public void cleanup() {

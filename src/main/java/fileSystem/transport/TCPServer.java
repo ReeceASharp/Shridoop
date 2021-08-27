@@ -31,9 +31,7 @@ public class TCPServer implements Runnable {
         currentConnections = new ArrayList<>();
 
         try {
-            //create a socket on a pocket for incoming connections to connect to
             serverSocket = new ServerSocket(port);
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -53,34 +51,28 @@ public class TCPServer implements Runnable {
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
 
-        logger.debug(String.format("Port:%s, Socket:%s %n",
-                port, serverSocket.getLocalSocketAddress().toString()));
+        logger.debug(String.format("Accepting Connections on: Port:%s, Socket:%s",
+                serverSocket.getLocalPort(),
+                serverSocket.getLocalSocketAddress().toString()));
 
         //set a reference after it has been fully constructed, used for cleanup
         node.setTCPServer(this);
 
         try {
-            // Note: this is used when sending a connection request out. It requires a lock
-            // to ensure the server has completed its configuration before allowing other threads to grab
-            // information from it to send away, but it is only used if a setup lock was pass in
             if (setupLock != null)
                 setupLock.release();
 
+            // Accept new connections
             while (true) {
-                //block for incoming connections
                 Socket incomingSocket = serverSocket.accept();
-                //handle new incoming connection
                 SocketStream ss = new SocketStream(incomingSocket);
-                node.connectionHandler.addConnection(ss);
-
+                node.connectionMetadata.addConnection(ss);
                 new Thread(new TCPReceiver(node, ss, this)).start();
-
-                //logger.debug(node.connectionHandler);
             }
         } catch (SocketException e) {
             System.out.println("Exiting.");
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Received an unhandled exception." + e.getMessage());
         }
     }
 
@@ -98,7 +90,7 @@ public class TCPServer implements Runnable {
         }
         currentConnections.clear();
 
-        logger.debug("EXITING TCPSERVER");
+        logger.debug("Cleanup has completed.");
     }
 
     public int getServerPort() {
@@ -109,17 +101,16 @@ public class TCPServer implements Runnable {
         return serverSocket.getInetAddress().getHostName();
     }
 
-    /**
-     * Adds a reference to the known connections the server has
-     *
-     * @param connection a
-     */
-    public void addConnection(TCPReceiver connection) {
+    public void addConnection(Node hostNode, SocketStream ss) {
+        TCPReceiver connection = new TCPReceiver(hostNode, ss, this);
         currentConnections.add(connection);
+        new Thread(connection).start();
     }
 
     public void removeConnection(TCPReceiver connection) {
+
         currentConnections.remove(connection);
+
     }
 
 }

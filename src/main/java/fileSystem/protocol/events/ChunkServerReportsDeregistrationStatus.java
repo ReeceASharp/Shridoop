@@ -43,4 +43,14 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
     public String getName() {
         return name;
     }
+
+    @Override
+    public String toString() {
+        return "ChunkServerReportsDeregistrationStatus{" +
+                       "status=" + status +
+                       ", originatingIP='" + originatingIP + '\'' +
+                       ", originatingPort=" + originatingPort +
+                       ", name='" + name + '\'' +
+                       '}';
+    }
 }

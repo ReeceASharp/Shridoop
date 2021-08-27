@@ -21,4 +21,11 @@ public class ChunkServerReportsFunctionalHeartbeat implements Event {
     public int getStatus() {
         return status;
     }
+
+    @Override
+    public String toString() {
+        return "ChunkServerReportsFunctionalHeartbeat{" +
+                       "status=" + status +
+                       '}';
+    }
 }

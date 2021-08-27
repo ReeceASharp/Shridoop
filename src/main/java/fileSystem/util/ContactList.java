@@ -11,9 +11,9 @@ import java.util.ArrayList;
  */
 public class ContactList implements Serializable {
     private final int chunkNumber;
-    private final ArrayList<String> serversToContact;
+    private final ArrayList<Pair<String, Integer>> serversToContact;
 
-    public ContactList(int chunkNumber, ArrayList<String> serversToContact) {
+    public ContactList(int chunkNumber, ArrayList<Pair<String, Integer>> serversToContact) {
         this.chunkNumber = chunkNumber;
         this.serversToContact = serversToContact;
     }
@@ -35,7 +35,7 @@ public class ContactList implements Serializable {
      * Note: The string needs to be separated, as it's in the form of "[HOST]:[PORT]"
      * @return Returns a list of servers that contain/will contain this chunk
      */
-    public ArrayList<String> getServersToContact() {
+    public ArrayList<Pair<String, Integer>> getServersToContact() {
         return serversToContact;
     }
 

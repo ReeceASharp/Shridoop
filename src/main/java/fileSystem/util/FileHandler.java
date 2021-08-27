@@ -25,7 +25,6 @@ public class FileHandler {
 
     public synchronized byte[] getFileData(String file) {
 
-
         Path absolutePath = resolveFileName(file);
         byte[] fileData = null;
         try {

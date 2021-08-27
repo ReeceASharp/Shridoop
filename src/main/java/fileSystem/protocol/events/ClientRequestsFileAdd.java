@@ -11,6 +11,15 @@ public class ClientRequestsFileAdd implements Event {
     private final int numberOfChunks;
     private final long fileSize;
 
+    @Override
+    public String toString() {
+        return "ClientRequestsFileAdd{" +
+                       "file='" + file + '\'' +
+                       ", numberOfChunks=" + numberOfChunks +
+                       ", fileSize=" + fileSize +
+                       '}';
+    }
+
     public ClientRequestsFileAdd(String file, int numberOfChunks, long fileSize) {
         this.file = file;
         this.numberOfChunks = numberOfChunks;

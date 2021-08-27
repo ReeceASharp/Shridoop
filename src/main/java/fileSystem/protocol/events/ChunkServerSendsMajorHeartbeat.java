@@ -25,4 +25,10 @@ public class ChunkServerSendsMajorHeartbeat implements Event {
         return type;
     }
 
+    @Override
+    public String toString() {
+        return "ChunkServerSendsMajorHeartbeat{" +
+                       "currentChunks=" + currentChunks +
+                       '}';
+    }
 }

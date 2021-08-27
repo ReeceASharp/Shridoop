@@ -1,29 +1,81 @@
 package fileSystem.node;
 
-import fileSystem.protocol.Event;
-import fileSystem.transport.ConnectionHandler;
-import fileSystem.transport.SocketStream;
-import fileSystem.transport.TCPSender;
-import fileSystem.transport.TCPServer;
-import fileSystem.util.Command;
+import fileSystem.protocol.*;
+import fileSystem.transport.*;
+import fileSystem.util.*;
 
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Map;
-
-import static fileSystem.util.ConsoleParser.*;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 
 /**
  * Abstraction of a node, which each part of the system is build upon
  */
 public abstract class Node {
-    public static final int CHUNK_SIZE = 65536;
-    //Connection handler that generates the input/output streams for easy access/reusability
-    public final ConnectionHandler connectionHandler = new ConnectionHandler();
-    //reference to the server
+    public static Properties properties;
+    static {
+        try {
+            InputStream s = Node.class.getResourceAsStream("/config.properties");
+            properties = new Properties();
+            properties.load(s);
+        } catch (IOException e) {
+            System.out.println("Failed to fetch config variables. This will cause issues.");
+        }
+    }
+
+    public static final int CHUNK_SIZE = Integer.parseInt((String)properties.get("CHUNK_SIZE"));
+
+
+    public Node() {
+        this.connectionMetadata = new ConnectionMetadata();
+        this.eventActions = new HashMap<>();
+
+        this.associateEvents();
+    }
+
+
+
+    // Cluster connections
+    public final ConnectionMetadata connectionMetadata;
     protected TCPServer server;
+    protected ConsoleParser console;
+    protected final Map<Integer, EventAction> eventActions;
+
+    protected abstract void associateEvents();
+
+
+    //private void request(Event event) {
+    //    try {
+    //        if (controllerSocket == null) {
+    //
+    //            controllerSocket = new Socket(controllerHost, controllerPort);
+    //            SocketStream ss = new SocketStream(controllerSocket);
+    //            connectionMetadata.addConnection(ss);
+    //
+    //            //create a listener on this new connection to listen for future responses
+    //
+    //            (new TCPReceiver(this, ss, server));
+    //        }
+    //        logger.debug("Sending request");
+    //        //send it off to the Controller to respond
+    //    } catch (IOException e) {
+    //        e.printStackTrace();
+    //    }
+    //}
+
+    protected SocketStream connect(String host, int port) {
+        try {
+            Socket connection = new Socket(host, port);
+            SocketStream ss = new SocketStream(connection);
+            this.connectionMetadata.addConnection(ss);
+
+            this.server.addConnection(this, ss);
+
+            return ss;
+        } catch (IOException e) {
+            return null;
+        }
+    }
 
     /**
      * send the bytes through a specific connection via thread
@@ -32,9 +84,10 @@ public abstract class Node {
      * @param event  The message being sent (Uses objects)
      */
     protected void sendMessage(Socket socket, Event event) {
-        //convert socket to socketstream
-        SocketStream ss = connectionHandler.getSocketStream(socket);
-        //System.out.println("SENDING MESSAGE: " + ss);
+        sendMessage(connectionMetadata.getSocketStream(socket), event);
+    }
+
+    protected void sendMessage(SocketStream ss, Event event) {
         new Thread(new TCPSender(ss, event)).start();
     }
 
@@ -66,15 +119,20 @@ public abstract class Node {
      */
     public abstract String intro();
 
-
-
     /**
      * When receiving a command from a given TCP thread, do something with the request
      *
-     * @param e      event to be decoded and handled
+     * @param event  event to be decoded and handled
      * @param socket pipeline that the event came on in
      */
-    public abstract void onEvent(Event e, Socket socket);
+    public void onEvent(Event event, Socket socket) {
+        try {
+            EventAction action = this.eventActions.get(event.getType());
+            action.runAction(event, socket);
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * Called by the consoleParser to quit gracefully
@@ -99,6 +157,29 @@ public abstract class Node {
         return server.getServerHost();
     }
 
-    public abstract Map<String, Command> getCommandMap();
+    /**
+     * A mapping of commands to their resulting commands on the node. Combined with a set of default console commands
+     * determined by the ConsoleParser to give a customized set of commands for each type of node.
+     *
+     * @return
+     */
+    public abstract Map<String, Command> getCommandList();
+
+    /**
+     * Caches the state for node to a configurable location. Works with updateFromCache().This allows
+     * the cluster to be brought up and down successfully.
+     */
+    protected abstract void cacheInfo();
+
+    /**
+     * Uses the cached information from cacheInfo() to set the state of the node.
+     */
+    protected abstract void updateFromCache();
+
+
+    protected interface EventAction {
+        void runAction(Event e, Socket socket);
+    }
+
 
 }
