@@ -3,6 +3,7 @@ package fileSystem.node;
 import fileSystem.protocol.*;
 import fileSystem.transport.*;
 import fileSystem.util.*;
+import fileSystem.util.Properties;
 
 import java.io.*;
 import java.net.*;
@@ -12,19 +13,7 @@ import java.util.*;
  * Abstraction of a node, which each part of the system is build upon
  */
 public abstract class Node {
-    public static Properties properties;
-    static {
-        try {
-            InputStream s = Node.class.getResourceAsStream("/config.properties");
-            properties = new Properties();
-            properties.load(s);
-        } catch (IOException e) {
-            System.out.println("Failed to fetch config variables. This will cause issues.");
-        }
-    }
-
-    public static final int CHUNK_SIZE = Integer.parseInt((String)properties.get("CHUNK_SIZE"));
-
+    public static final int CHUNK_SIZE = Integer.parseInt(Properties.get("CHUNK_SIZE"));
 
     public Node() {
         this.connectionMetadata = new ConnectionMetadata();
@@ -34,7 +23,6 @@ public abstract class Node {
     }
 
 
-
     // Cluster connections
     public final ConnectionMetadata connectionMetadata;
     protected TCPServer server;
@@ -42,26 +30,6 @@ public abstract class Node {
     protected final Map<Integer, EventAction> eventActions;
 
     protected abstract void associateEvents();
-
-
-    //private void request(Event event) {
-    //    try {
-    //        if (controllerSocket == null) {
-    //
-    //            controllerSocket = new Socket(controllerHost, controllerPort);
-    //            SocketStream ss = new SocketStream(controllerSocket);
-    //            connectionMetadata.addConnection(ss);
-    //
-    //            //create a listener on this new connection to listen for future responses
-    //
-    //            (new TCPReceiver(this, ss, server));
-    //        }
-    //        logger.debug("Sending request");
-    //        //send it off to the Controller to respond
-    //    } catch (IOException e) {
-    //        e.printStackTrace();
-    //    }
-    //}
 
     protected SocketStream connect(String host, int port) {
         try {
