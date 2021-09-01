@@ -5,7 +5,7 @@ import fileSystem.protocol.Event;
 import static fileSystem.protocol.Protocol.CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS;
 
 /**
- * Sent from the ChunkServer to the Controller confirming its request for deregistration, and by
+ * Sent from the ChunkServer to the Controller confirming its request to deregister, and by
  * extension shutdown
  */
 public class ChunkServerReportsDeregistrationStatus implements Event {

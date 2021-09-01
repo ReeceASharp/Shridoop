@@ -4,6 +4,7 @@ import fileSystem.protocol.*;
 import fileSystem.protocol.events.*;
 import fileSystem.transport.*;
 import fileSystem.util.*;
+import fileSystem.util.Properties;
 import fileSystem.util.metadata.*;
 import org.apache.logging.log4j.*;
 
@@ -22,7 +23,7 @@ public class Controller extends Node implements Heartbeat {
     private static final Logger logger = LogManager.getLogger(Controller.class);
 
     //Properties
-    private static final int REPLICATION_FACTOR = Integer.parseInt((String)properties.get("REPLICATION_FACTOR"));
+    private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
     private final int port;
 
     // Metadata storage
@@ -44,9 +45,9 @@ public class Controller extends Node implements Heartbeat {
     }
 
     public static void main(String[] args) throws UnknownHostException {
-        if (Node.properties.get("DEBUG") == "true")
+        if (Properties.get("DEBUG").equals("true"))
             LogConfiguration.debug();
-        logger.info("Debug: " + Node.properties.get("DEBUG"));
+        logger.info("Debug: " + Properties.get("DEBUG"));
 
 
         int port = Integer.parseInt(args[0]);
@@ -114,6 +115,7 @@ public class Controller extends Node implements Heartbeat {
         if (isActive)
             stopChunkServers();
         server.cleanup();
+
     }
 
     private String stopChunkServers() {
@@ -338,12 +340,21 @@ public class Controller extends Node implements Heartbeat {
      * @param socket
      */
     private void fileGet(Event e, Socket socket) {
+        ClientRequestsFile request = (ClientRequestsFile) e;
+
         // Look at current list of files in system, and respond with the list of servers associated with the requested
         // file, or respond with a negative status in the case of an absence of that file
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
+        int status = RESPONSE_FAILURE;
+        int numOfChunks = -1;
 
-        Event response = new ControllerReportsChunkGetList(RESPONSE_FAILURE, 0);
+        FileMetadata fmd = clusterHandler.getFile(request.getFile());
+
+
+
+
+        Event response = new ControllerReportsChunkGetList(status, numOfChunks, null);
         sendMessage(socket, response);
     }
 
@@ -358,10 +369,10 @@ public class Controller extends Node implements Heartbeat {
         ClientRequestsFileList request = (ClientRequestsFileList) e;
 
         //TODO: logic to handle getting the files in the system, or under the optional path
-        ArrayList<String> files = new ArrayList<>();
 
+        List<String> files = clusterHandler.getFiles().stream().map(FileMetadata::toString).collect(Collectors.toList());
 
-        Event response = new ControllerReportsFileList(RESPONSE_SUCCESS, files);
+        Event response = new ControllerReportsFileList(RESPONSE_SUCCESS, (ArrayList<String>) files);
         sendMessage(socket, response);
     }
 }
