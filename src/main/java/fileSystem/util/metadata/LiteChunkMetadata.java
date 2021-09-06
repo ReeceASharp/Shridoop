@@ -1,42 +1,44 @@
 package fileSystem.util.metadata;
 
-import java.util.ArrayList;
-import java.util.UUID;
+import fileSystem.util.*;
+import fileSystem.util.Properties;
+
+import java.util.*;
+
 
 /**
  * Metadata for each chunk, contains the chunkNumber of the associated file,
  * and a list of ID's that when used with the ServerHandler, can get relevant details
- * Default size of Chunk is 64kb, default size of slice is 8kb
+ * Default size of Chunk is 64kb
  */
-public class ChunkMetadata {
+public class LiteChunkMetadata {
     int chunkNumber;
     int chunkSize;
     String chunkHash;
-    ArrayList<UUID> serversHoldingChunk;
-    ArrayList<String> sliceCheckSums;
+    ArrayList<Pair<String, Integer>> serversHoldingChunk;
 
-
-    public ChunkMetadata(int chunkNumber, int chunkSize, String chunkHash) {
+    public LiteChunkMetadata(int chunkNumber,
+                             int chunkSize,
+                             String chunkHash,
+                             ArrayList<Pair<String, Integer>> serversHoldingChunk) {
         this.chunkNumber = chunkNumber;
         this.chunkSize = chunkSize;
         this.chunkHash = chunkHash;
-        this.serversHoldingChunk = new ArrayList<>();
-        this.sliceCheckSums = new ArrayList<>();
+        this.serversHoldingChunk = serversHoldingChunk;
+
     }
+
+    //TODO: Refactor so that the chunk hash info is generated in the constructor, and the data itself is passed in to
+    // be processed
+
 
     @Override
     public String toString() {
-        return "ChunkMetadata{" +
+        return "LiteChunkMetadata{" +
                        "chunkNumber=" + chunkNumber +
                        ", chunkSize=" + chunkSize +
                        ", chunkHash='" + chunkHash + '\'' +
                        ", serversHoldingChunk=" + serversHoldingChunk +
-                       ", sliceCheckSums=" + sliceCheckSums +
                        '}';
-    }
-
-    private class SliceMetadata {
-
-
     }
 }

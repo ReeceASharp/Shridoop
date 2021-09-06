@@ -17,7 +17,7 @@ import static fileSystem.protocol.Protocol.*;
 import static fileSystem.util.Utils.*;
 
 public class ChunkServer extends Node implements Heartbeat {
-    //private static final int SLICE_SIZE = 8192;
+
 
 
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
@@ -212,8 +212,9 @@ public class ChunkServer extends Node implements Heartbeat {
         //store the file in the local directory for the ChunkServer
         fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
 
-        //update the contact details
+        //Store the update in
 
+        //update the contact details
         ArrayList<Pair<String, Integer>> serversToContact = request.getServersToContact();
         if (serversToContact.isEmpty()) {
             logger.debug("Completed Replication of file chunk: " + fileName);

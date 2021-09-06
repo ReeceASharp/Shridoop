@@ -8,10 +8,10 @@ import java.util.ArrayList;
  * list is then passed to from the Chunk Server to the Controller during the
  * minor heartbeats.
  */
-public class RecordHandler {
+public class RecordKeeper {
     private final ArrayList<Record> records;
 
-    public RecordHandler() {
+    public RecordKeeper() {
         this.records = new ArrayList<>();
     }
 

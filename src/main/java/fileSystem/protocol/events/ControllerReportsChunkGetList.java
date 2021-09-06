@@ -9,19 +9,14 @@ public class ControllerReportsChunkGetList implements Event {
     private static final int type = Protocol.CONTROLLER_REPORTS_CHUNK_GET_LIST;
 
     private final int status;
-    private final int numberOfChunks;
     private final ArrayList<ContactList> chunkLocations;
 
 
-    public ControllerReportsChunkGetList(int status, int numberOfChunks, ArrayList<ContactList> chunkLocations) {
+    public ControllerReportsChunkGetList(int status, ArrayList<ContactList> chunkLocations) {
         this.status = status;
-        this.numberOfChunks = numberOfChunks;
         this.chunkLocations = chunkLocations;
     }
 
-    public int getNumberOfChunks() {
-        return numberOfChunks;
-    }
 
     public int getStatus() {
         return status;
@@ -36,7 +31,7 @@ public class ControllerReportsChunkGetList implements Event {
     public String toString() {
         return "ControllerReportsChunkGetList{" +
                        "status=" + status +
-                       ", numberOfChunks=" + numberOfChunks +
+                       ", chunkLocations=" + chunkLocations +
                        '}';
     }
 

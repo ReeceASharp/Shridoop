@@ -3,8 +3,8 @@ package fileSystem.node;
 import fileSystem.protocol.*;
 import fileSystem.protocol.events.*;
 import fileSystem.transport.*;
-import fileSystem.util.*;
 import fileSystem.util.Properties;
+import fileSystem.util.*;
 import fileSystem.util.metadata.*;
 import org.apache.logging.log4j.*;
 
@@ -115,7 +115,6 @@ public class Controller extends Node implements Heartbeat {
         if (isActive)
             stopChunkServers();
         server.cleanup();
-
     }
 
     private String stopChunkServers() {
@@ -176,7 +175,7 @@ public class Controller extends Node implements Heartbeat {
      * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
      */
     private String initialize() {
-        //TODO: Refactor Tmux script to instead be called here
+        // TODO: Remove all init functionality. the tmux script is too cool not to use
 
         if (isActive)
             return "Already active.";
@@ -239,7 +238,6 @@ public class Controller extends Node implements Heartbeat {
         clusterHandler.addServer(request.getServerName(), request.getHost(),
                 request.getPort(), socket);
 
-        //logger.debug("Received Registration Request: " + socket);
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
         sendMessage(socket, event);
     }
@@ -247,7 +245,6 @@ public class Controller extends Node implements Heartbeat {
     private void deregistrationResponse(Event e, Socket socket) {
         ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
 
-        //create the relevant object to find using the overloaded equals operator for ChunkData
         boolean removed;
         synchronized (clusterHandler.getServers()) {
             removed = clusterHandler.removeBySocket(socket);
@@ -347,14 +344,16 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
         int status = RESPONSE_FAILURE;
-        int numOfChunks = -1;
+        ArrayList<ContactList> chunkList = null;
 
         FileMetadata fmd = clusterHandler.getFile(request.getFile());
+        if (fmd != null) {
+            status = RESPONSE_SUCCESS;
+            chunkList = fmd.getChunkLocations();
+        }
 
 
-
-
-        Event response = new ControllerReportsChunkGetList(status, numOfChunks, null);
+        Event response = new ControllerReportsChunkGetList(status, chunkList);
         sendMessage(socket, response);
     }
 

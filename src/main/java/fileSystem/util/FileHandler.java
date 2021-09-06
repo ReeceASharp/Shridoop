@@ -1,6 +1,6 @@
 package fileSystem.util;
 
-import fileSystem.util.metadata.FileChunkData;
+import fileSystem.util.metadata.*;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -14,6 +14,9 @@ import java.util.ArrayList;
 public class FileHandler {
     //list of known chunks stored by the ChunkServer
     private final ArrayList<FileChunkData> fileChunks;
+    // TODO: Move over this system to the full metadata version, which supports checksum slice handling
+    //private final ArrayList<FullChunkMetadata> fileChunks;
+
     //path of where the FileHandler starts its storage system
     private final Path homePath;
 

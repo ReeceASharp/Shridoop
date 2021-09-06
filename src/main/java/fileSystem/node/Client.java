@@ -116,15 +116,15 @@ public class Client extends Node {
 
     private String deleteFile(String userInput) {
         String[] tokens = userInput.split(" ");
-        String fileName = "";
-        sendMessage(controllerSocket, new ClientRequestsFileDelete(tokens[1]));
+        String fileName = tokens[1];
+        sendMessage(controllerSocket, new ClientRequestsFileDelete(fileName));
         return String.format("Delete file: '%s'.", fileName);
     }
 
     private String getFile(String userInput) {
-        String fileName = "";
         String[] tokens = userInput.split(" ");
-        sendMessage(controllerSocket, new ClientRequestsFile(tokens[1]));
+        String fileName = tokens[1];
+        sendMessage(controllerSocket, new ClientRequestsFile(fileName));
         return String.format("Get file: '%s'.", fileName);
     }
 
@@ -150,6 +150,7 @@ public class Client extends Node {
         ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
 
         //TODO: handle logic of querying the ChunkServers
+        logger.debug(response.getChunkLocations());
 
         // For each chunk in the fetchlist, pick a random server and send a
     }
