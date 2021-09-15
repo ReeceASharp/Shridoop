@@ -1,3 +1,4 @@
+#!/bin/bash
 # Reads the file, and given a port and name to register with, will start a ChunkServer
 # listening on that port. Used by the Controller
 # Note: The name is just an alias used for easier reference

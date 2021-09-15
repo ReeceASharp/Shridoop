@@ -19,13 +19,13 @@ MATRIX_PERCENT=70
 
 # Contents can be edited, and these commands will be ran inside their respective terminal
 top_left() {
-  cd $PROJECT_ROOT
+  cd "$PROJECT_ROOT"
   clear
   java -cp target/Distributed_File_System-*.jar fileSystem.node.Controller 7000
 }
 
 top_right() {
-  cd $PROJECT_ROOT
+  cd "$PROJECT_ROOT"
   echo 'Waiting 5 seconds for the Controller to start up'
   sleep 5
   clear
@@ -33,7 +33,7 @@ top_right() {
 }
 
 matrix() {
-  cd $PROJECT_ROOT
+  cd "$PROJECT_ROOT"
   echo 'Waiting 5 seconds for the Controller to start up'
   sleep 5
   clear

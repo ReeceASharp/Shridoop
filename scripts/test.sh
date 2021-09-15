@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Note: this is only for Windows, assuming git is installed
 # This script simply opens up a few terminals and simulates a distributed environment

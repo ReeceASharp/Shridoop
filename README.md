@@ -21,8 +21,8 @@ to a true local cluster.
 ---
 
 ### Requirements
-- Java 8
-- Linux or Unix-Like (Cygwin, MinGW, etc) terminal with [Tmux](https://github.com/tmux/tmux/wiki) installed
+-  Java 8
+-  Linux or Unix-Like (Cygwin, MinGW, etc) terminal with [Tmux](https://github.com/tmux/tmux/wiki) installed
 - [Maven](https://maven.apache.org/)  
   
 Note: Any operating system should work given the requirements are fulfilled, but it hasn't been tested on OS X
@@ -30,10 +30,10 @@ Note: Any operating system should work given the requirements are fulfilled, but
 ---
 ### Setup
 
-1. Clone the Repository
-2. While inside the Distributed_File_System directory, run `maven compile` to compile and bundle into a fat jar
+1.  Clone the Repository
+2.  While inside the Distributed_File_System directory, run `maven compile` to compile and bundle into a fat jar
 inside of `./target`
-3. Edit 'chunkServers_[OS]'. File format: `[serverName] [Port] [dynamicPath]`  
+3.  Edit 'chunkServers_[OS]'. File format: `[serverName] [Port] [dynamicPath]`  
     Note: The start-up script `terminal_setup.sh` uses this file
-4. 'java -cp /target/Distributed_File_System-1.0.jar fileSystem.node.Controller [PORT]' 
+4.  'java -cp /target/Distributed_File_System-1.0.jar fileSystem.node.Controller [PORT]'
 <br><br>

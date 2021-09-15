@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
       ## -*-Shell-Script-*-
 CmdName=${0##*/}
 Usage="usage: $CmdName runs envsubst, but allows '\$' to  keep variables from
