@@ -19,7 +19,7 @@ public abstract class Node {
         this.connectionMetadata = new ConnectionMetadata();
         this.eventActions = new HashMap<>();
 
-        this.associateEvents();
+        this.resolveEventMap();
     }
 
 
@@ -29,7 +29,7 @@ public abstract class Node {
     protected ConsoleParser console;
     protected final Map<Integer, EventAction> eventActions;
 
-    protected abstract void associateEvents();
+    protected abstract void resolveEventMap();
 
     protected SocketStream connect(String host, int port) {
         try {
@@ -107,6 +107,8 @@ public abstract class Node {
      */
     public abstract void cleanup();
 
+    public abstract void onLostConnection(Socket socket);
+
     /**
      * Set a reference inside of the node to the relating TCPServer. Benefit is it allows a graceful exit, and
      * can be used to get config information more easily, instead of it being stored redundantly inside the node
@@ -148,6 +150,7 @@ public abstract class Node {
     protected interface EventAction {
         void runAction(Event e, Socket socket);
     }
+
 
 
 }

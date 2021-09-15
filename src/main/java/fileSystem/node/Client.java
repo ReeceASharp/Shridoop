@@ -1,15 +1,21 @@
 package fileSystem.node;
 
-import fileSystem.protocol.*;
+import fileSystem.protocol.Event;
 import fileSystem.protocol.events.*;
-import fileSystem.transport.*;
+import fileSystem.transport.SocketStream;
+import fileSystem.transport.TCPServer;
 import fileSystem.util.*;
-import org.apache.logging.log4j.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.io.*;
-import java.net.*;
-import java.nio.file.*;
-import java.util.*;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 import static fileSystem.protocol.Protocol.*;
 
@@ -49,7 +55,7 @@ public class Client extends Node {
     }
 
     @Override
-    protected void associateEvents() {
+    protected void resolveEventMap() {
         // Controller -> Client
         this.eventActions.put(CONTROLLER_REPORTS_FILE_LIST, this::displayStoredFiles);
         this.eventActions.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
@@ -74,6 +80,13 @@ public class Client extends Node {
     @Override
     public void cleanup() {
         server.cleanup();
+    }
+
+    @Override
+    public void onLostConnection(Socket socket) {
+        //TODO: This might be a bit in the future, but when the client is receiving file chunks, and this is called,
+        // queue up another chunk transfer from another node. This might even be necessary as the thread organizing the
+        // chunk fetch will already be aware of any shenanigans
     }
 
     @Override

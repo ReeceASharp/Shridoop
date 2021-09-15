@@ -1,6 +1,6 @@
 package fileSystem.util;
 
-import fileSystem.util.metadata.*;
+import fileSystem.util.metadata.FileChunkData;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -42,16 +42,6 @@ public class FileHandler {
      * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
      * pathname of requested file
      *
-     * @return
-     */
-    private Path resolveFileName(Path localPath) {
-        Path resolvedPath = homePath.resolve(localPath);
-        return resolvedPath.toAbsolutePath();
-    }
-
-    /**
-     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
-     * pathname of requested file
      * @param localPath
      * @return
      */
@@ -82,6 +72,17 @@ public class FileHandler {
 
         //TODO: generate slices + SHA1 values
 
+    }
+
+    /**
+     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
+     * pathname of requested file
+     *
+     * @return
+     */
+    private Path resolveFileName(Path localPath) {
+        Path resolvedPath = homePath.resolve(localPath);
+        return resolvedPath.toAbsolutePath();
     }
 
     public synchronized ArrayList<FileChunkData> getFileChunks() {

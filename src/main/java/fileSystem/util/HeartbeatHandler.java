@@ -1,8 +1,8 @@
 package fileSystem.util;
 
-import fileSystem.node.Node;
-import fileSystem.node.Controller;
 import fileSystem.node.ChunkServer;
+import fileSystem.node.Controller;
+import fileSystem.node.Node;
 import fileSystem.protocol.Protocol;
 
 import java.util.Timer;
@@ -12,18 +12,15 @@ import java.util.TimerTask;
  * Used by the
  */
 public class HeartbeatHandler {
-    private Timer beatTimer;
-
     // time, in seconds, between beats
     private final int heartbeatDelay;
     // on nth beat, send out a major beat instead of a minor
     private final int beatsBetweenMajor;
+    private final boolean isActive;
+    private final Node node;
+    private Timer beatTimer;
     // beat #
     private int currentBeats;
-    private final boolean isActive;
-
-
-    private final Node node;
 
     public HeartbeatHandler(int heartbeatDelay, int beatsBetweenMajor, Node node) {
         this.heartbeatDelay = heartbeatDelay;

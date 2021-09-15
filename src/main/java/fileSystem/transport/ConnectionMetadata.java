@@ -19,8 +19,8 @@ public class ConnectionMetadata {
     @Override
     public String toString() {
         return "ConnectionHandler{" +
-                "connections=" + connections +
-                '}';
+                       "connections=" + connections +
+                       '}';
     }
 
     public synchronized void addConnection(SocketStream ss) {
@@ -32,7 +32,7 @@ public class ConnectionMetadata {
     }
 
     public synchronized SocketStream getSocketStream(Socket socket) {
-        Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.socket.equals(socket)).findFirst();
+        Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.socket.equals(socket)).findFirst();
         return server.orElse(null);
     }
 
@@ -40,13 +40,13 @@ public class ConnectionMetadata {
         return connections.get(index);
     }
 
-    public synchronized SocketStream getSocketStream(String hostPort) {
-        Optional<SocketStream> server = connections.stream().filter(socketStream->socketStream.hostPort.equals(hostPort)).findFirst();
-        return server.orElse(null);
-    }
-
     public synchronized SocketStream getSocketStream(String host, int port) {
         return getSocketStream(String.format("%s:%d", host, port));
+    }
+
+    public synchronized SocketStream getSocketStream(String hostPort) {
+        Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.hostPort.equals(hostPort)).findFirst();
+        return server.orElse(null);
     }
 
 

@@ -1,9 +1,9 @@
 package fileSystem.util.metadata;
 
-import fileSystem.util.*;
-
-import java.util.*;
+import fileSystem.util.Pair;
 import fileSystem.util.Properties;
+
+import java.util.ArrayList;
 
 
 public class FullChunkMetadata extends LiteChunkMetadata {

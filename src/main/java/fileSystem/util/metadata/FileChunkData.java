@@ -22,10 +22,10 @@ public class FileChunkData {
     @Override
     public String toString() {
         return "FileChunkData{" +
-                "path=" + path +
-                ", version=" + version +
-                ", sequence='" + sequence + '\'' +
-                ", timestamp='" + timestamp + '\'' +
-                '}';
+                       "path=" + path +
+                       ", version=" + version +
+                       ", sequence='" + sequence + '\'' +
+                       ", timestamp='" + timestamp + '\'' +
+                       '}';
     }
 }

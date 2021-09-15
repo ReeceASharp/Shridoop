@@ -1,6 +1,5 @@
 package fileSystem.util.metadata;
 
-import java.io.IOException;
 import java.net.Socket;
 import java.util.UUID;
 
@@ -27,12 +26,12 @@ public class ServerMetadata {
     @Override
     public String toString() {
         return "ServerMetadata{" +
-                "serverName='" + serverName + '\'' +
-                ", host='" + host + '\'' +
-                ", port=" + port +
-                ", socket=" + socket +
-                ", serverID=" + serverID +
-                ", heartbeatTimestamp='" + heartbeatTimestamp + '\'' +
-                '}';
+                       "serverName='" + serverName + '\'' +
+                       ", host='" + host + '\'' +
+                       ", port=" + port +
+                       ", socket=" + socket +
+                       ", serverID=" + serverID +
+                       ", heartbeatTimestamp='" + heartbeatTimestamp + '\'' +
+                       '}';
     }
 }

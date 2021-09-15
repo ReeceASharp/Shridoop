@@ -1,9 +1,9 @@
 package fileSystem.util.metadata;
 
-import fileSystem.util.*;
+import fileSystem.util.ContactList;
 
-import java.util.*;
-import java.util.stream.*;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Contains all relevant metadata for a file in the distributed filesystem

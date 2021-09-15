@@ -3,9 +3,6 @@ package fileSystem.util;
 import fileSystem.node.Node;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-//import org.apache.commons.text.
-//import org.apache.commons.text.WordUtils;
-
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +27,20 @@ public class ConsoleParser implements Runnable {
         this.userInput = new Scanner(System.in);
     }
 
+    private void setup(Node node) {
+        resolveCommands(node);
+    }
+
+    private void resolveCommands(Node node) {
+
+        this.commandList.put("commands", userInput -> this.commandList.keySet().toString());
+        this.commandList.put("help", userInput -> node.help());
+        this.commandList.put("quit", userInput -> null);
+
+        // Get the node specific commands, and their mappings
+        this.commandList.putAll(node.getCommandList());
+    }
+
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
@@ -42,7 +53,7 @@ public class ConsoleParser implements Runnable {
     }
 
     private void parseInput() {
-        while(true) {
+        while (true) {
 
             System.out.print("Command: ");
             String input = userInput.nextLine();
@@ -63,20 +74,6 @@ public class ConsoleParser implements Runnable {
 
             System.out.println(result);
         }
-    }
-
-    private void setup(Node node) {
-        resolveCommands(node);
-    }
-
-    private void resolveCommands(Node node) {
-
-        this.commandList.put("commands", userInput -> this.commandList.keySet().toString());
-        this.commandList.put("help", userInput -> node.help());
-        this.commandList.put("quit", userInput -> null);
-
-        // Get the node specific commands, and their mappings
-        this.commandList.putAll(node.getCommandList());
     }
 
 }
