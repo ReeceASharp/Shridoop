@@ -1,23 +1,28 @@
 package fileSystem.node;
 
-import fileSystem.protocol.*;
+import fileSystem.protocol.Event;
 import fileSystem.protocol.events.*;
-import fileSystem.transport.*;
+import fileSystem.transport.SocketStream;
+import fileSystem.transport.TCPReceiver;
+import fileSystem.transport.TCPServer;
 import fileSystem.util.*;
-import fileSystem.util.metadata.*;
-import org.apache.logging.log4j.*;
+import fileSystem.util.metadata.FileChunkData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.io.*;
-import java.net.*;
-import java.nio.file.*;
-import java.util.*;
-import java.util.concurrent.*;
+import java.io.IOException;
+import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 import static fileSystem.protocol.Protocol.*;
-import static fileSystem.util.Utils.*;
+import static fileSystem.util.Utils.appendLn;
 
 public class ChunkServer extends Node implements Heartbeat {
-    //private static final int SLICE_SIZE = 8192;
 
 
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
@@ -106,7 +111,7 @@ public class ChunkServer extends Node implements Heartbeat {
     }
 
     @Override
-    protected void associateEvents() {
+    protected void resolveEventMap() {
         this.eventActions.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
         this.eventActions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deregistration);
         this.eventActions.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
@@ -127,6 +132,63 @@ public class ChunkServer extends Node implements Heartbeat {
     public String intro() {
         return "Distributed System ChunkServer (DEV ONLY), type " +
                        "'help' for more details: ";
+    }
+
+    @Override
+    public void cleanup() {
+        logger.debug("EXITING CHUNKSERVER");
+
+        server.cleanup();
+
+        // Note: because the console has a Scanner waiting for an input from System.in,
+        // the only real way to exit is via the System, which is fine considering the
+        // server was shut down gracefully
+        System.exit(0);
+    }
+
+    @Override
+    public void onLostConnection(Socket socket) {
+        //IGNORE
+    }
+
+    @Override
+    public Map<String, Command> getCommandList() {
+        Map<String, Command> commandMap = new HashMap<>();
+
+        commandMap.put("list-files", userInput -> listChunks());
+        commandMap.put("config", userInput -> showConfig());
+
+        return commandMap;
+    }
+
+    private String listChunks() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, "Home path: " + homePath);
+        appendLn(sb, "***********************");
+        for (FileChunkData smd : fileHandler.getFileChunks())
+            appendLn(sb, smd.toString());
+        appendLn(sb, "***********************");
+        return sb.toString();
+    }
+
+    /**
+     * Print out the details of the ChunkServer in a formatted way
+     */
+    private String showConfig() {
+        return String.format("ServerName: '%s', " +
+                                     "Path: '%s'%n" +
+                                     "Server%s%n",
+                serverName, homePath, server);
+    }
+
+    @Override
+    protected void cacheInfo() {
+
+    }
+
+    @Override
+    protected void updateFromCache() {
+
     }
 
     private void registrationStatus(Event e, Socket socket) {
@@ -157,6 +219,11 @@ public class ChunkServer extends Node implements Heartbeat {
                 getServerPort(), serverName);
 
         sendMessage(socket, event);
+    }
+
+    private void handleShutdown(Event e, Socket socket) {
+        // Wrapping in a EventAction so that it can be called when the server controller requests a shutdown
+        cleanup();
     }
 
     /**
@@ -212,8 +279,9 @@ public class ChunkServer extends Node implements Heartbeat {
         //store the file in the local directory for the ChunkServer
         fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
 
-        //update the contact details
+        //Store the update in
 
+        //update the contact details
         ArrayList<Pair<String, Integer>> serversToContact = request.getServersToContact();
         if (serversToContact.isEmpty()) {
             logger.debug("Completed Replication of file chunk: " + fileName);
@@ -233,63 +301,6 @@ public class ChunkServer extends Node implements Heartbeat {
 
         //Can reuse the message, as it's the same data, just with an updated
         sendMessage(socketStream.socket, request);
-    }
-
-    private void handleShutdown(Event e, Socket socket) {
-        // Wrapping in a EventAction so that it can be called when the server controller requests a shutdown
-        cleanup();
-    }
-
-    @Override
-    public void cleanup() {
-        logger.debug("EXITING CHUNKSERVER");
-
-        server.cleanup();
-
-        // Note: because the console has a Scanner waiting for an input from System.in,
-        // the only real way to exit is via the System, which is fine considering the
-        // server was shut down gracefully
-        System.exit(0);
-    }
-
-    @Override
-    public Map<String, Command> getCommandList() {
-        Map<String, Command> commandMap = new HashMap<>();
-
-        commandMap.put("list-files", userInput -> listChunks());
-        commandMap.put("config", userInput -> showConfig());
-
-        return commandMap;
-    }
-
-    private String listChunks() {
-        StringBuilder sb = new StringBuilder();
-        appendLn(sb, "Home path: " + homePath);
-        appendLn(sb, "***********************");
-        for (FileChunkData smd : fileHandler.getFileChunks())
-            appendLn(sb, smd.toString());
-        appendLn(sb, "***********************");
-        return sb.toString();
-    }
-
-    /**
-     * Print out the details of the ChunkServer in a formatted way
-     */
-    private String showConfig() {
-        return String.format("ServerName: '%s', " +
-                                     "Path: '%s'%n" +
-                                     "Server%s%n",
-                serverName, homePath, server);
-    }
-
-    @Override
-    protected void cacheInfo() {
-
-    }
-
-    @Override
-    protected void updateFromCache() {
-
     }
 
     @Override

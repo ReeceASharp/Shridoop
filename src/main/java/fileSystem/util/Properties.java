@@ -1,12 +1,13 @@
 package fileSystem.util;
 
-import fileSystem.node.*;
+import fileSystem.node.Node;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class Properties {
     private static java.util.Properties properties;
+
     static {
         try {
             InputStream s = Node.class.getResourceAsStream("/config.properties");

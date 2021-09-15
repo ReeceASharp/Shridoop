@@ -1,9 +1,9 @@
 package fileSystem.util;
 
-import java.io.*;
-import java.util.*;
+import java.io.Serializable;
+import java.util.Objects;
 
-public class Pair<L,R> implements Serializable {
+public class Pair<L, R> implements Serializable {
 
     private final L left;
     private final R right;
@@ -16,9 +16,10 @@ public class Pair<L,R> implements Serializable {
         this.right = right;
     }
 
-    public L getLeft() { return left; }
-    public R getRight() { return right; }
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(getLeft(), getRight());
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -29,13 +30,16 @@ public class Pair<L,R> implements Serializable {
                        Objects.equals(getRight(), pair.getRight());
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(getLeft(), getRight());
+    public L getLeft() {
+        return left;
+    }
+
+    public R getRight() {
+        return right;
     }
 
     @Override
     public String toString() {
-        return "Pair{" + left + ':'+ right + '}';
+        return "Pair{" + left + ':' + right + '}';
     }
 }

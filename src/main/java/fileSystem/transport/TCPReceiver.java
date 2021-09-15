@@ -46,37 +46,39 @@ public class TCPReceiver implements Runnable {
         //logger.debug("LISTENING ON: " + socketStream);
         while (!socketStream.socket.isClosed()) {
             try {
-                //synchronize reads from a socket to make sure it's all read in chunks
-                synchronized (socketStream.socket) {
-                    event = (Event) inStream.readObject();
+                try {
+                    synchronized (socketStream.socket) {
+                        event = (Event) inStream.readObject();
+                    }
+                    logger.debug("Received Message: " + event.toString());
+                    node.onEvent(event, socketStream.socket);
+                } catch (Exception e) {
+                    cleanup();
+                    throw e;
                 }
-                //pass it along to the receiving node to handle
-                logger.debug("Received Message: " + event.toString());
-                node.onEvent(event, socketStream.socket);
-
             } catch (EOFException eof) {
                 // standard exit method, means that the other side closed off its socket, causing this side's socket
                 // to throw this error, which follows the ControllerReportsShutdown control flow
                 logger.debug("Closing up the connection. Proper exit.");
-                cleanup();
             } catch (SocketException se) {
                 logger.error(se.getMessage() + ", " + socketStream.socket);
-                cleanup();
             } catch (IOException ioe) {
                 logger.error("ERROR: Connection closed, no longer listening to: " + socketStream.socket);
                 ioe.printStackTrace();
-                cleanup();
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
         }
         logger.debug("Exiting: " + socketStream.socket);
+
     }
 
     public void cleanup() {
         // needs to be synchronized as cleanup is a multi-step process, if it only partially runs before something
         // else attempts to use/modify it, the TCPReceiver is left in an unsafe state
         socketStream.cleanup();
+        server.removeConnection(this);
+        node.onLostConnection(this.socketStream.socket);
     }
 
 }

@@ -1,38 +1,37 @@
 package fileSystem.node;
 
-import fileSystem.protocol.*;
+import fileSystem.protocol.Event;
 import fileSystem.protocol.events.*;
-import fileSystem.transport.*;
-import fileSystem.util.*;
+import fileSystem.transport.TCPServer;
 import fileSystem.util.Properties;
-import fileSystem.util.metadata.*;
-import org.apache.logging.log4j.*;
+import fileSystem.util.*;
+import fileSystem.util.metadata.FileMetadata;
+import fileSystem.util.metadata.LiteChunkMetadata;
+import fileSystem.util.metadata.ServerMetadata;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.net.*;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 import static fileSystem.protocol.Protocol.*;
-import static fileSystem.util.Utils.*;
+import static fileSystem.util.Utils.appendLn;
 
 
 public class Controller extends Node implements Heartbeat {
 
-
     private static final Logger logger = LogManager.getLogger(Controller.class);
-
     //Properties
     private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
     private final int port;
-
     // Metadata storage
     private final ClusterMetadataHandler clusterHandler;
-
     //Control flow
     private boolean isActive;
     private HeartbeatHandler timer;
-
     //Start - Stop synchronization
     private CountDownLatch activeChunkServers;
 
@@ -80,7 +79,7 @@ public class Controller extends Node implements Heartbeat {
     }
 
     @Override
-    protected void associateEvents() {
+    protected void resolveEventMap() {
         // ChunkServer -> Controller
         this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
         this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
@@ -102,48 +101,24 @@ public class Controller extends Node implements Heartbeat {
                        "are shown with 'commands'.";
     }
 
-    //private ArrayList<>
-
     @Override
     public String intro() {
         return "Distributed System Controller: Enter 'help' for more information on configuration " +
                        "or 'init' to start up the cluster";
     }
 
+    //private ArrayList<>
+
     @Override
     public void cleanup() {
         if (isActive)
             stopChunkServers();
         server.cleanup();
-
     }
 
-    private String stopChunkServers() {
-        if (!isActive) {
-            return "Cluster isn't currently active";
-        }
-        isActive = false;
-        timer.stop();
-
-        //Request that each server shutdown
-        String response;
-        try {
-            synchronized (clusterHandler.getServers()) {
-                activeChunkServers = new CountDownLatch(clusterHandler.getServers().size());
-                logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
-
-                Event event = new ControllerRequestsDeregistration();
-                for (ServerMetadata smd : clusterHandler.getServers())
-                    sendMessage(smd.socket, event);
-            }
-            activeChunkServers.await();
-            response = "All servers have responded, exiting";
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            response = "Error. Server shutdown Failed.";
-        }
-
-        return response;
+    @Override
+    public void onLostConnection(Socket socket) {
+        this.clusterHandler.removeBySocket(socket);
     }
 
     @Override
@@ -176,7 +151,7 @@ public class Controller extends Node implements Heartbeat {
      * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
      */
     private String initialize() {
-        //TODO: Refactor Tmux script to instead be called here
+        // TODO: Remove all init functionality. the tmux script is too cool not to use
 
         if (isActive)
             return "Already active.";
@@ -233,13 +208,40 @@ public class Controller extends Node implements Heartbeat {
 
     }
 
+    private String stopChunkServers() {
+        if (!isActive) {
+            return "Cluster isn't currently active";
+        }
+        isActive = false;
+        timer.stop();
+
+        //Request that each server shutdown
+        String response;
+        try {
+            synchronized (clusterHandler.getServers()) {
+                activeChunkServers = new CountDownLatch(clusterHandler.getServers().size());
+                logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkServers.getCount()));
+
+                Event event = new ControllerRequestsDeregistration();
+                for (ServerMetadata smd : clusterHandler.getServers())
+                    sendMessage(smd.socket, event);
+            }
+            activeChunkServers.await();
+            response = "All servers have responded, exiting";
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            response = "Error. Server shutdown Failed.";
+        }
+
+        return response;
+    }
+
     private void chunkServerRegistration(Event e, Socket socket) {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
 
         clusterHandler.addServer(request.getServerName(), request.getHost(),
                 request.getPort(), socket);
 
-        //logger.debug("Received Registration Request: " + socket);
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
         sendMessage(socket, event);
     }
@@ -247,7 +249,6 @@ public class Controller extends Node implements Heartbeat {
     private void deregistrationResponse(Event e, Socket socket) {
         ChunkServerReportsDeregistrationStatus response = (ChunkServerReportsDeregistrationStatus) e;
 
-        //create the relevant object to find using the overloaded equals operator for ChunkData
         boolean removed;
         synchronized (clusterHandler.getServers()) {
             removed = clusterHandler.removeBySocket(socket);
@@ -326,11 +327,27 @@ public class Controller extends Node implements Heartbeat {
      */
     private void fileDelete(Event e, Socket socket) {
         //See if file exists in the system, and send out requests to delete it, if it exists
+        ClientRequestsFileDelete request = (ClientRequestsFileDelete) e;
+
+        String fileToDelete = request.getFile();
+
+
+        FileMetadata fmd = clusterHandler.getFile(fileToDelete);
+        if (fmd != null) {
+            // For each chunk location, send out a request to delete it
+            for (LiteChunkMetadata chunkMetadata : fmd.chunkList) {
+
+                //sendMessage();
+            }
+
+
+        }
+
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
 
-        //Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
-        //sendMessage(socket, response);
+        Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
+        sendMessage(socket, response);
     }
 
     /**
@@ -347,14 +364,16 @@ public class Controller extends Node implements Heartbeat {
 
         //TODO: Logic to check for file existence + get servers hosting chunks of said file
         int status = RESPONSE_FAILURE;
-        int numOfChunks = -1;
+        ArrayList<ContactList> chunkList = null;
 
         FileMetadata fmd = clusterHandler.getFile(request.getFile());
+        if (fmd != null) {
+            status = RESPONSE_SUCCESS;
+            chunkList = fmd.getChunkLocations();
+        }
 
 
-
-
-        Event response = new ControllerReportsChunkGetList(status, numOfChunks, null);
+        Event response = new ControllerReportsChunkGetList(status, chunkList);
         sendMessage(socket, response);
     }
 

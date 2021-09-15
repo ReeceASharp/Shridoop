@@ -35,17 +35,17 @@ public class ClusterMetadataHandler {
     private final ArrayList<ServerMetadata> currentServers;
     private final Map<String, FileMetadata> currentFiles;
 
+    public ClusterMetadataHandler() {
+        currentServers = new ArrayList<>();
+        currentFiles = new HashMap<>();
+    }
+
     public Collection<FileMetadata> getFiles() {
         return currentFiles.values();
     }
 
     public FileMetadata getFile(String filePath) {
         return currentFiles.getOrDefault(filePath, null);
-    }
-
-    public ClusterMetadataHandler() {
-        currentServers = new ArrayList<>();
-        currentFiles = new HashMap<>();
     }
 
     public ArrayList<ServerMetadata> getServers() {
@@ -61,6 +61,10 @@ public class ClusterMetadataHandler {
         currentServers.add(new ServerMetadata(serverName, host, port, socket, heartbeatStamp));
     }
 
+    public synchronized boolean removeBySocket(Socket socket) {
+        return currentServers.remove(getServer(socket));
+    }
+
     /**
      * Attempting to use java streams to find the relevant server based on known connection
      *
@@ -71,12 +75,6 @@ public class ClusterMetadataHandler {
         Optional<ServerMetadata> server = currentServers.stream().filter(metadata -> metadata.socket.equals(socket)).findFirst();
         return server.orElse(null);
     }
-
-    public synchronized boolean removeBySocket(Socket socket) {
-        return currentServers.remove(getServer(socket));
-    }
-
-
 
 
 }

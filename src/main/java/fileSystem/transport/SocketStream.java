@@ -13,20 +13,19 @@ public class SocketStream {
 
     public SocketStream(Socket socket) throws IOException {
         this.socket = socket;
-        this.hostPort = String.format("%s:%d", socket.getInetAddress().getHostAddress(),
-                socket.getPort());
-        outStream = new ObjectOutputStream(socket.getOutputStream());
-        outStream.flush();
+        this.hostPort = String.format("%s:%d", socket.getInetAddress().getHostAddress(), socket.getPort());
+        this.outStream = new ObjectOutputStream(socket.getOutputStream());
+        this.outStream.flush();
         //inStream = new ObjectInputStream(socket.getInputStream());
     }
 
     @Override
     public String toString() {
         return "SocketStream{" +
-                "socket=" + socket +
-                ", outStream=" + outStream +
-                ", inStream=" + inStream +
-                '}';
+                       "socket=" + socket +
+                       ", outStream=" + outStream +
+                       ", inStream=" + inStream +
+                       '}';
     }
 
     public void cleanup() {

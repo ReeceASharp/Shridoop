@@ -108,7 +108,6 @@ public class TCPServer implements Runnable {
     }
 
     public void removeConnection(TCPReceiver connection) {
-
         currentConnections.remove(connection);
 
     }

@@ -10,7 +10,7 @@ SESSION="Distributed"
 OS="linux"
 
 export SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-export PROJECT_ROOT=$SCRIPT_DIR/..
+export PROJECT_ROOT=$(readlink -f "$SCRIPT_DIR"/..)
 
 # Dimensions of Grid of terminals, and percentage of entire terminal
 MATRIX_WIDTH=3
@@ -20,6 +20,7 @@ MATRIX_PERCENT=70
 # Contents can be edited, and these commands will be ran inside their respective terminal
 top_left() {
   cd $PROJECT_ROOT
+  clear
   java -cp target/Distributed_File_System-*.jar fileSystem.node.Controller 7000
 }
 
@@ -104,7 +105,7 @@ then
   # Matrix
   for (( i = 0; i < MATRIX_HEIGHT*MATRIX_WIDTH; i++ ))
   do
-    tmux send-keys "$COMMAND_MATRIX" " ${array_dump[i]}" Enter
+    tmux send-keys "$COMMAND_MATRIX" " " "${array_dump[i]}"
     tmux select-pane -t +1
   done
 fi
