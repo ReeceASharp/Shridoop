@@ -306,8 +306,8 @@ public class Controller extends Node implements Heartbeat {
 
             for (Integer serverIndex : randomServerIndexes) {
                 String host = serverList.get(serverIndex).host;
-                int port = serverList.get(serverIndex).port;
-                selectedServers.add(new Pair(host, port));
+                Integer port = serverList.get(serverIndex).port;
+                selectedServers.add(new Pair<>(host, port));
             }
             //add to the running list of chunk destinations and reset for the next chunk
             chunkDestinations.add(new ContactList(i, new ArrayList<>(selectedServers)));

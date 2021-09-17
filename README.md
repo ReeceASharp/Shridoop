@@ -1,4 +1,4 @@
-# Distributed_File_System
+# Shridoop
 
 
 ### General Information
@@ -16,6 +16,9 @@ having its own local filesystem, given via a relative home path specified in the
 
 If this ever was converted to utilize a network cluster, a minimum amount of changes should be necessary to convert this 
 to a true local cluster.
+
+As a side note, the name comes combining an awesome professor who taught me all about of this stuff during my last year 
+in college with the software this repo is attempting to replicate some features of (Hadoop). 
 </p>
 
 ---
