@@ -8,6 +8,8 @@ import filesystem.util.*;
 import filesystem.util.metadata.FileMetadata;
 import filesystem.util.metadata.LiteChunkMetadata;
 import filesystem.util.metadata.ServerMetadata;
+import filesystem.util.taskscheduler.HeartBeatTask;
+import filesystem.util.taskscheduler.TaskScheduler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,18 +23,14 @@ import static filesystem.protocol.Protocol.*;
 import static filesystem.util.Utils.appendLn;
 
 
-public class Controller extends Node implements Heartbeat {
+public class Controller extends Node implements HeartBeat {
 
     private static final Logger logger = LogManager.getLogger(Controller.class);
-    //Properties
     private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
     private final int port;
-    // Metadata storage
     private final ClusterMetadataHandler clusterHandler;
-    //Control flow
     private boolean isActive;
-    private HeartbeatHandler timer;
-    //Start - Stop synchronization
+    private TaskScheduler timer;
     private CountDownLatch activeChunkServers;
 
     public Controller(int port) {
@@ -59,20 +57,20 @@ public class Controller extends Node implements Heartbeat {
 
     private void setup() {
         // Builds components outside of the constructor that require a reference to the parent to function
-        this.timer = new HeartbeatHandler(5, 9, this);
-        this.server = new TCPServer(this, port, null);
+        this.timer = new TaskScheduler(this.getClass().getName());
+        this.server = new TCPServer(this, port);
         this.console = new ConsoleParser(this);
 
         new Thread(this.server).start();
         new Thread(this.console).start();
+
+        this.timer.scheduleAndStart(new HeartBeatTask(this::onHeartBeat), "ChunkServerHealthStatus", 5, 30);
     }
 
     @Override
     public void onHeartBeat(int type) {
         //send out requests to each of the current ChunkServers to make sure no failures have occurred
         Event e = new ControllerRequestsFunctionalHeartbeat();
-
-
         for (ServerMetadata smd : clusterHandler.getServers()) {
             sendMessage(smd.socket, e);
         }
@@ -83,8 +81,9 @@ public class Controller extends Node implements Heartbeat {
         // ChunkServer -> Controller
         this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
         this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::updateMajorbeat);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::updateMinorbeat);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::receiveMajorbeat);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMinorbeat);
+        this.eventActions.put(CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT, this::receiveHealthStatus);
         // Client -> Controller
         this.eventActions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
         this.eventActions.put(CLIENT_REQUESTS_FILE_DELETE, this::fileDelete);
@@ -106,8 +105,6 @@ public class Controller extends Node implements Heartbeat {
         return "Distributed System Controller: Enter 'help' for more information on configuration " +
                        "or 'init' to start up the cluster";
     }
-
-    //private ArrayList<>
 
     @Override
     public void cleanup() {
@@ -213,7 +210,7 @@ public class Controller extends Node implements Heartbeat {
             return "Cluster isn't currently active";
         }
         isActive = false;
-        timer.stop();
+        //timer.stop();
 
         //Request that each server shutdown
         String response;
@@ -266,15 +263,22 @@ public class Controller extends Node implements Heartbeat {
         activeChunkServers.countDown();
     }
 
-    private void updateMajorbeat(Event e, Socket socket) {
+    private void receiveMajorbeat(Event e, Socket socket) {
         ChunkServerSendsMajorHeartbeat heartbeat = (ChunkServerSendsMajorHeartbeat) e;
+
+        //heartbeat
 
 
     }
 
-    private void updateMinorbeat(Event e, Socket socket) {
+    private void receiveMinorbeat(Event e, Socket socket) {
         ChunkServerSendsMinorHeartbeat heartbeat = (ChunkServerSendsMinorHeartbeat) e;
 
+    }
+
+    private void receiveHealthStatus(Event e, Socket socket) {
+        ChunkServerReportsHeartbeat hb = (ChunkServerReportsHeartbeat) e;
+        clusterHandler.updateHeartBeatBySocket(socket);
     }
 
     /**
@@ -297,7 +301,7 @@ public class Controller extends Node implements Heartbeat {
         //for each chunk, generate a random list of servers to contact
         for (int i = 1; i <= request.getNumberOfChunks(); i++) {
 
-            //Generate a random list of distinct ints from 0 to n ChunkServers, then grab k amount needed for replication
+            //Generate a random list of distinct ints from 0 to n-1 ChunkServers, then grab k amount needed for replication
             List<Integer> randomServerIndexes = new Random().ints(0, serverList.size())
                                                         .distinct()
                                                         .limit(REPLICATION_FACTOR)

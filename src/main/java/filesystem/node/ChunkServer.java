@@ -7,6 +7,7 @@ import filesystem.transport.TCPReceiver;
 import filesystem.transport.TCPServer;
 import filesystem.util.*;
 import filesystem.util.metadata.FileChunkData;
+import filesystem.util.taskscheduler.TaskScheduler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,12 +18,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 
 import static filesystem.protocol.Protocol.*;
 import static filesystem.util.Utils.appendLn;
 
-public class ChunkServer extends Node implements Heartbeat {
+public class ChunkServer extends Node implements HeartBeat {
 
 
     private static final Logger logger = LogManager.getLogger(ChunkServer.class);
@@ -31,7 +31,7 @@ public class ChunkServer extends Node implements Heartbeat {
     private final String serverName;
     private final String homePath;
     private final FileHandler fileHandler;
-
+    private TaskScheduler timer;
 
     public ChunkServer(String serverName, String homePath) {
         super();
@@ -49,61 +49,52 @@ public class ChunkServer extends Node implements Heartbeat {
         final String serverName = args[3];
         final String homePath = args[4];
 
-        logger.debug(String.format("Listen: %d, serverName: %s, StoragePath: %s", listenPort, serverName, homePath));
-
         ChunkServer server = new ChunkServer(serverName, homePath);
-        server.setup();
+        server.setup(controllerHost, controllerPort, listenPort);
 
-        Semaphore setupLock = new Semaphore(1);
-        setupLock.tryAcquire();
-
-        Thread tcpServer = new Thread(new TCPServer(server, listenPort, setupLock));
-        tcpServer.start();
-
-        Thread console = new Thread(new ConsoleParser(server));
-        console.start();
-
-        try {
-            setupLock.acquire();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        sendRegistration(server, controllerHost, controllerPort);
+        logger.debug(String.format("Listen: %d, serverName: %s, StoragePath: %s", listenPort, serverName, homePath));
     }
 
-    private void setup() throws IOException {
+    private void setup(String controllerHost, int controllerPort, int listenPort) throws IOException {
         Files.createDirectories(Paths.get(this.homePath));
+
+        this.timer = new TaskScheduler(this.getClass().getName());
+        this.server = new TCPServer(this, listenPort);
+        this.console = new ConsoleParser(this);
+
+        new Thread(this.server).start();
+        new Thread(this.console).start();
+
+        this.sendRegistration(controllerHost, controllerPort);
     }
 
     /**
      * Chunk Server wants to register with the Controller after setting up, throw a message at it to check
      *
-     * @param node           The ChunkServer sending the registration request
      * @param controllerHost The hostname/IP of the ChunkServer
      * @param controllerPort The port of the ChunkServer
      * @throws IOException thrown if the socket creation fails for some reason
      */
-    private static void sendRegistration(ChunkServer node, String controllerHost, int controllerPort) throws IOException {
+    private void sendRegistration(String controllerHost, int controllerPort) throws IOException {
         //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(node.getServerName(),
-                node.getServerHost(),
-                node.getServerPort());
+        Event e = new ChunkServerRequestsRegistration(this.getServerName(),
+                this.getServerHost(),
+                this.getServerPort());
 
         //open a socket/connection with the Controller, and set variables to be referenced later
         Socket controllerSocket = new Socket(controllerHost, controllerPort);
 
         SocketStream ss = new SocketStream(controllerSocket);
-        node.connectionMetadata.addConnection(ss);
+        this.connectionMetadata.addConnection(ss);
         //create a listener on this new connection to listen for future requests/responses
-        Thread receiver = new Thread(new TCPReceiver(node, ss, node.server));
+        Thread receiver = new Thread(new TCPReceiver(this, ss, this.server));
         receiver.start();
 
         //Send the message to the Registry to attempt registration
         //logger.debug(node.connectionHandler);
-        node.sendMessage(controllerSocket, e);
+        this.sendMessage(controllerSocket, e);
     }
 
     public String getServerName() {
@@ -234,7 +225,7 @@ public class ChunkServer extends Node implements Heartbeat {
      * @param socket
      */
     private void respondWithStatus(Event e, Socket socket) {
-        Event event = new ChunkServerReportsFunctionalHeartbeat(RESPONSE_SUCCESS);
+        Event event = new ChunkServerReportsHeartbeat(RESPONSE_SUCCESS);
         sendMessage(socket, event);
     }
 

@@ -1,18 +1,29 @@
 package filesystem.node;
 
-import filesystem.protocol.*;
-import filesystem.transport.*;
-import filesystem.util.*;
+import filesystem.protocol.Event;
+import filesystem.transport.ConnectionMetadata;
+import filesystem.transport.SocketStream;
+import filesystem.transport.TCPSender;
+import filesystem.transport.TCPServer;
+import filesystem.util.Command;
+import filesystem.util.ConsoleParser;
 import filesystem.util.Properties;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Abstraction of a node, which each part of the system is build upon
  */
 public abstract class Node {
+    private static final Logger logger = LogManager.getLogger(Node.class);
+
     public static final int CHUNK_SIZE = Integer.parseInt(Properties.get("CHUNK_SIZE"));
 
     public Node() {
@@ -98,6 +109,8 @@ public abstract class Node {
             EventAction action = this.eventActions.get(event.getType());
             action.runAction(event, socket);
         } catch (NullPointerException e) {
+            logger.error(String.format("Unable to handle Event with # received: '%s', Event: %s",
+                    event.getType(), event.toString()));
             e.printStackTrace();
         }
     }
@@ -108,16 +121,6 @@ public abstract class Node {
     public abstract void cleanup();
 
     public abstract void onLostConnection(Socket socket);
-
-    /**
-     * Set a reference inside of the node to the relating TCPServer. Benefit is it allows a graceful exit, and
-     * can be used to get config information more easily, instead of it being stored redundantly inside the node
-     *
-     * @param ref a reference to the TCPServer
-     */
-    public void setTCPServer(TCPServer ref) {
-        this.server = ref;
-    }
 
     protected int getServerPort() {
         return server.getServerPort();

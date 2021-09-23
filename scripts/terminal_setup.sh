@@ -21,7 +21,7 @@ MATRIX_PERCENT=70
 top_left() {
   cd "$PROJECT_ROOT"
   clear
-  java -cp target/Distributed_File_System-*.jar fileSystem.node.Controller 7000
+  java -cp target/Distributed_File_System-*.jar filesystem.node.Controller 7000
 }
 
 top_right() {
@@ -29,7 +29,7 @@ top_right() {
   echo 'Waiting 5 seconds for the Controller to start up'
   sleep 5
   clear
-  java -cp target/Distributed_File_System-*.jar fileSystem.node.Client localhost 7000
+  java -cp target/Distributed_File_System-*.jar filesystem.node.Client localhost 7000
 }
 
 matrix() {
@@ -37,7 +37,7 @@ matrix() {
   echo 'Waiting 5 seconds for the Controller to start up'
   sleep 5
   clear
-  java -cp target/Distributed_File_System-*.jar fileSystem.node.ChunkServer localhost 7000
+  java -cp target/Distributed_File_System-*.jar filesystem.node.ChunkServer localhost 7000
 }
 
 

@@ -2,14 +2,14 @@ package filesystem.protocol.events;
 
 import filesystem.protocol.Event;
 
-import static filesystem.protocol.Protocol.CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT;
+import static filesystem.protocol.Protocol.CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT;
 
-public class ChunkServerReportsFunctionalHeartbeat implements Event {
-    private static final int type = CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT;
+public class ChunkServerReportsHeartbeat implements Event {
+    private static final int type = CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT;
 
     private final int status;
 
-    public ChunkServerReportsFunctionalHeartbeat(int status) {
+    public ChunkServerReportsHeartbeat(int status) {
         this.status = status;
     }
 

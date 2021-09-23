@@ -9,7 +9,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
-import java.util.concurrent.Semaphore;
 
 /**
  * Organizes the creation and listening of incoming connections
@@ -20,13 +19,11 @@ public class TCPServer implements Runnable {
     private final ArrayList<TCPReceiver> currentConnections;
     private final Node node;
     private final int port;
-    private final Semaphore setupLock;
     private ServerSocket serverSocket;
-    // Constructor that is used if a certain port must be used for the server
-    public TCPServer(Node node, int port, Semaphore setupLock) {
+
+    public TCPServer(Node node, int port) {
         this.node = node;
         this.port = port;
-        this.setupLock = setupLock;
 
         currentConnections = new ArrayList<>();
 
@@ -55,13 +52,7 @@ public class TCPServer implements Runnable {
                 serverSocket.getLocalPort(),
                 serverSocket.getLocalSocketAddress().toString()));
 
-        //set a reference after it has been fully constructed, used for cleanup
-        node.setTCPServer(this);
-
         try {
-            if (setupLock != null)
-                setupLock.release();
-
             // Accept new connections
             while (true) {
                 Socket incomingSocket = serverSocket.accept();

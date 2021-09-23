@@ -45,13 +45,13 @@ public class Client extends Node {
     }
 
     private void setup() {
-        this.server = new TCPServer(this, 0, null);
+        this.server = new TCPServer(this, 0);
         this.console = new ConsoleParser(this);
 
         new Thread(this.server).start();
         new Thread(this.console).start();
 
-        controllerSocket = connect(controllerHost, controllerPort);
+        this.controllerSocket = connect(controllerHost, controllerPort);
     }
 
     @Override
@@ -85,7 +85,7 @@ public class Client extends Node {
     @Override
     public void onLostConnection(Socket socket) {
         //TODO: This might be a bit in the future, but when the client is receiving file chunks, and this is called,
-        // queue up another chunk transfer from another node. This might even be necessary as the thread organizing the
+        // queue up another chunk transfer from another node. This might not even be necessary as the thread organizing the
         // chunk fetch will already be aware of any shenanigans
     }
 

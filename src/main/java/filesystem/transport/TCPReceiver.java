@@ -2,6 +2,7 @@ package filesystem.transport;
 
 import filesystem.node.Node;
 import filesystem.protocol.Event;
+import filesystem.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,7 +51,8 @@ public class TCPReceiver implements Runnable {
                     synchronized (socketStream.socket) {
                         event = (Event) inStream.readObject();
                     }
-                    logger.debug("Received Message: " + event.toString());
+                    if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
+                        logger.debug("Received Message: " + event.toString());
                     node.onEvent(event, socketStream.socket);
                 } catch (Exception e) {
                     cleanup();

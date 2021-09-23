@@ -10,6 +10,7 @@ public class Protocol {
 
     public static final int HEARTBEAT_MINOR = 50;
     public static final int HEARTBEAT_MAJOR = 51;
+    public static final int HEARTBEAT_IGNORE_TYPE = 52;
 
     // Controller -> ChunkServer
     public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 100;
@@ -23,7 +24,7 @@ public class Protocol {
     public static final int CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS = 111;
     public static final int CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT = 112;
     public static final int CHUNK_SERVER_SENDS_MINOR_HEARTBEAT = 113;
-    public static final int CHUNK_SERVER_REPORTS_FUNCTIONAL_HEARTBEAT = 114;
+    public static final int CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT = 114;
 
 
     // ChunkServer -> ChunkServer
