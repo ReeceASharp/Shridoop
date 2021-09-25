@@ -40,3 +40,18 @@ inside of `./target`
     Note: The start-up script `terminal_setup.sh` uses this file
 4.  'java -cp /target/Distributed_File_System-1.0.jar fileSystem.node.Controller [PORT]'
 <br><br>
+
+--- 
+### Screenshots
+
+Controller
+![](image/terminal_controller.png?raw=true)
+
+Client
+![](image/terminal_client.png?raw=true)
+
+ChunkServer
+![](image/terminal_chunk_server_yellow.png?raw=true)
+
+Filesystem
+![](image/filesystem_result.png?raw=true)
