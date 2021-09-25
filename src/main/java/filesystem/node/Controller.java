@@ -133,13 +133,8 @@ public class Controller extends Node implements HeartBeat {
 
     private String listClusterFiles() {
         StringBuilder sb = new StringBuilder();
-        appendLn(sb, "**** FILES ****");
-
-        for (FileMetadata fmd : clusterHandler.getFiles())
-            appendLn(sb, fmd.toString());
-
-        appendLn(sb, " ************* ");
-
+        sb.append(Utils.GenericListFormatter.getFormattedOutput(
+                new ArrayList<>(clusterHandler.getFiles()), "|", true));
         return sb.toString();
     }
 
@@ -175,23 +170,28 @@ public class Controller extends Node implements HeartBeat {
      */
     public String showConfig() {
         StringBuilder sb = new StringBuilder();
-        appendLn(sb, "**** NODES ****");
-        appendLn(sb, String.format("Nodes: %d", clusterHandler.getServers().size()));
-        for (ServerMetadata server : clusterHandler.getServers())
-            appendLn(sb, server.toString());
-        appendLn(sb, " ************* ");
+        ArrayList<ServerMetadata> smd = clusterHandler.getServers();
 
+        appendLn(sb, String.format("Nodes: %d", smd.size()));
+        sb.append(Utils.GenericListFormatter.getFormattedOutput(
+                new ArrayList<>(smd), "|", true));
         return sb.toString();
     }
 
     private String fileInfo(String userInput) {
         String[] tokens = userInput.split(" ");
 
-        FileMetadata fmd = this.clusterHandler.getFile(tokens[1]);
+        FileMetadata fmd;
+
+        try {
+            fmd = this.clusterHandler.getFile(tokens[1]);
+        } catch(ArrayIndexOutOfBoundsException e){
+            fmd = null;
+        }
         if (fmd != null)
             return fmd.toString();
 
-        return "File not in system.";
+        return "Invalid file.";
     }
 
     @Override

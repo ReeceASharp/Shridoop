@@ -55,7 +55,7 @@ public class ConsoleParser implements Runnable {
     private void parseInput() {
         while (true) {
 
-            System.out.print("Command: ");
+            //System.out.print("Command: ");
             String input = userInput.nextLine();
 
             String result;
@@ -66,6 +66,7 @@ public class ConsoleParser implements Runnable {
             } catch (NullPointerException npe) {
                 result = "Invalid Command.";
             } catch (Exception e) {
+                e.printStackTrace();
                 result = "Incorrect Parameters.";
             }
 
