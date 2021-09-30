@@ -27,4 +27,9 @@ public class TaskScheduler {
         return currentTasks;
     }
 
+    public void stopTasks() {
+        scheduleTimer.cancel();
+        currentTasks.clear();
+    }
+
 }

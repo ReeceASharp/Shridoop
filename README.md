@@ -17,18 +17,19 @@ A minimum (if any, really) amount of changes should be necessary to convert this
 to a true local cluster.
 
 As a side note, the name comes combining an awesome professor who taught me about all of this stuff during my last year 
-in college, with the software this repo is attempting to replicate some features of (HDFS). A minimum amount of 3rd
-                                                                                            party libaries were used, and only to simplify extra stuff like terminal auto-complete, and string formatting.
+in college, with the software this repo is attempting to replicate some features of (HDFS). A minimum amount of 3rd 
+party libraries were used, and only to simplify extra stuff like terminal auto-complete, and string formatting.
 </p>
 
 ---
 
 ### Requirements
 -  Java 8+
--  Linux or Unix-Like ([Cygwin](https://www.cygwin.com/), [MinGW](https://www.mingw-w64.org/), etc) terminal with [Tmux](https://github.com/tmux/tmux/wiki) installed
+-  Linux or Unix-Like ([Cygwin](https://www.cygwin.com/), [MinGW](https://www.mingw-w64.org/), etc) terminal with 
+[Tmux](https://github.com/tmux/tmux/wiki) installed
 - [Maven](https://maven.apache.org/)  
   
-Note: Any operating system should work given the requirements are fulfilled, but it hasn't been tested on OS X
+Note: Any operating system should work given that this is Java. 
 
 ---
 ### Setup

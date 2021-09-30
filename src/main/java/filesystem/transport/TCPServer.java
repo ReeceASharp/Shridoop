@@ -57,7 +57,7 @@ public class TCPServer implements Runnable {
             while (true) {
                 Socket incomingSocket = serverSocket.accept();
                 SocketStream ss = new SocketStream(incomingSocket);
-                node.connectionMetadata.addConnection(ss);
+                node.connectionHandler.addConnection(ss);
                 new Thread(new TCPReceiver(node, ss, this)).start();
             }
         } catch (SocketException e) {
@@ -68,14 +68,13 @@ public class TCPServer implements Runnable {
     }
 
     public void cleanup() {
-        //close up the main listening port
         try {
             if (!serverSocket.isClosed())
                 serverSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        //close up the list of known connections, which will then be handled on the other side as well
+
         for (TCPReceiver connection : currentConnections) {
             connection.cleanup();
         }

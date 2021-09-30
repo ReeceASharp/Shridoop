@@ -14,7 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
@@ -24,7 +24,6 @@ import static filesystem.util.Utils.appendLn;
 
 
 public class Controller extends Node implements HeartBeat {
-
     private static final Logger logger = LogManager.getLogger(Controller.class);
     private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
     private final int port;
@@ -41,7 +40,7 @@ public class Controller extends Node implements HeartBeat {
         this.clusterHandler = new ClusterMetadataHandler();
     }
 
-    public static void main(String[] args) throws UnknownHostException {
+    public static void main(String[] args) {
         if (Properties.get("DEBUG").equals("true"))
             LogConfiguration.debug();
         logger.info("Debug: " + Properties.get("DEBUG"));
@@ -64,7 +63,7 @@ public class Controller extends Node implements HeartBeat {
         new Thread(this.server).start();
         new Thread(this.console).start();
 
-        this.timer.scheduleAndStart(new HeartBeatTask(this::onHeartBeat), "ChunkServerHealthStatus", 5, 30);
+        this.timer.scheduleAndStart(new HeartBeatTask(this), "ChunkServerHealthStatus", 5, 30);
     }
 
     @Override
@@ -110,6 +109,8 @@ public class Controller extends Node implements HeartBeat {
     public void cleanup() {
         if (isActive)
             stopChunkServers();
+
+        timer.stopTasks();
         server.cleanup();
     }
 
@@ -132,10 +133,8 @@ public class Controller extends Node implements HeartBeat {
     }
 
     private String listClusterFiles() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(Utils.GenericListFormatter.getFormattedOutput(
-                new ArrayList<>(clusterHandler.getFiles()), "|", true));
-        return sb.toString();
+        return Utils.GenericListFormatter.getFormattedOutput(
+                new ArrayList<>(clusterHandler.getFiles()), "|", true);
     }
 
     /**
@@ -181,13 +180,12 @@ public class Controller extends Node implements HeartBeat {
     private String fileInfo(String userInput) {
         String[] tokens = userInput.split(" ");
 
-        FileMetadata fmd;
+        FileMetadata fmd = null;
 
         try {
             fmd = this.clusterHandler.getFile(tokens[1]);
-        } catch(ArrayIndexOutOfBoundsException e){
-            fmd = null;
-        }
+        } catch (ArrayIndexOutOfBoundsException ignored){ }
+
         if (fmd != null)
             return fmd.toString();
 
@@ -210,7 +208,6 @@ public class Controller extends Node implements HeartBeat {
             return "Cluster isn't currently active";
         }
         isActive = false;
-        //timer.stop();
 
         //Request that each server shutdown
         String response;
@@ -236,8 +233,7 @@ public class Controller extends Node implements HeartBeat {
     private void chunkServerRegistration(Event e, Socket socket) {
         ChunkServerRequestsRegistration request = (ChunkServerRequestsRegistration) e;
 
-        clusterHandler.addServer(request.getServerName(), request.getHost(),
-                request.getPort(), socket);
+        clusterHandler.addServer(request.getServerName(), request.getURL(), socket);
 
         Event event = new ControllerReportsRegistrationStatus(RESPONSE_SUCCESS);
         sendMessage(socket, event);
@@ -266,7 +262,8 @@ public class Controller extends Node implements HeartBeat {
     private void receiveMajorbeat(Event e, Socket socket) {
         ChunkServerSendsMajorHeartbeat heartbeat = (ChunkServerSendsMajorHeartbeat) e;
 
-        //heartbeat
+        // TODO: Verify current metadata with info from the heartbeat. This information will then
+        //  allow a scheduled task to run and check that the system is healthy (replication rules are followed, etc)
 
 
     }
@@ -274,18 +271,20 @@ public class Controller extends Node implements HeartBeat {
     private void receiveMinorbeat(Event e, Socket socket) {
         ChunkServerSendsMinorHeartbeat heartbeat = (ChunkServerSendsMinorHeartbeat) e;
 
+        // TODO: Update current metadata with info from heartbeat.
+
     }
 
     private void receiveHealthStatus(Event e, Socket socket) {
-        ChunkServerReportsHeartbeat hb = (ChunkServerReportsHeartbeat) e;
+        //ChunkServerReportsHeartbeat hb = (ChunkServerReportsHeartbeat) e;
         clusterHandler.updateHeartBeatBySocket(socket);
     }
 
     /**
      * Respond with a current list of ChunkServers to open a connection to send chunks
      *
-     * @param e      the event that contains the file being requested to be added
-     * @param socket
+     * @param e      The event that contains the file being requested to be added
+     * @param socket Socket connection of the client
      */
     private void fileAdd(Event e, Socket socket) {
         ClientRequestsFileAdd request = (ClientRequestsFileAdd) e;
@@ -294,7 +293,7 @@ public class Controller extends Node implements HeartBeat {
 
         ArrayList<ServerMetadata> serverList = clusterHandler.getServers();
         ArrayList<ContactList> chunkDestinations = new ArrayList<>();
-        ArrayList<Pair<String, Integer>> selectedServers = new ArrayList<>();
+        ArrayList<URL> selectedServers = new ArrayList<>();
 
         clusterHandler.addFile(request.getFile(), request.getNumberOfChunks(), request.getFileSize());
 
@@ -309,9 +308,7 @@ public class Controller extends Node implements HeartBeat {
                                                         .collect(Collectors.toList());
 
             for (Integer serverIndex : randomServerIndexes) {
-                String host = serverList.get(serverIndex).host;
-                Integer port = serverList.get(serverIndex).port;
-                selectedServers.add(new Pair<>(host, port));
+                selectedServers.add(serverList.get(serverIndex).url);
             }
             //add to the running list of chunk destinations and reset for the next chunk
             chunkDestinations.add(new ContactList(i, new ArrayList<>(selectedServers)));
@@ -327,38 +324,37 @@ public class Controller extends Node implements HeartBeat {
      * Respond with a status as to whether the delete was successful, or unsuccessful (FileNotFound?)
      *
      * @param e      the event containing the file that the client wants deleted
-     * @param socket
+     * @param socket Socket connection of the client
      */
     private void fileDelete(Event e, Socket socket) {
         //See if file exists in the system, and send out requests to delete it, if it exists
-        ClientRequestsFileDelete request = (ClientRequestsFileDelete) e;
+        ClientRequestsFileDelete clientRequest = (ClientRequestsFileDelete) e;
 
-        String fileToDelete = request.getFile();
+        String fileToDelete = clientRequest.getFile();
 
 
         FileMetadata fmd = clusterHandler.getFile(fileToDelete);
         if (fmd != null) {
             // For each chunk location, send out a request to delete it
             for (LiteChunkMetadata chunkMetadata : fmd.chunkList) {
-
-                //sendMessage();
+                for (URL url : chunkMetadata.serversHoldingChunk) {
+                    Socket chunkSocket = clusterHandler.getServer(url).socket;
+                    ControllerRequestsChunkDelete request = new ControllerRequestsChunkDelete(
+                            fileToDelete, chunkMetadata.chunkNumber);
+                    sendMessage(chunkSocket, request);
+                }
             }
-
-
         }
 
-
-        //TODO: Logic to check for file existence + get servers hosting chunks of said file
-
-        Event response = new ControllerReportsFileDeleteStatus(RESPONSE_FAILURE);
-        sendMessage(socket, response);
+        // TODO: Cache this command, and lock the metadata so that another command can't change state while it's being
+        //  handled. At the same time, maybe block on the client, waiting for the OK from the Controller
     }
 
     /**
      * Respond with a current list of ChunkServers containing all different chunks of the file
      *
      * @param e      The event containing the file the client wants
-     * @param socket
+     * @param socket Socket connection of the client
      */
     private void fileGet(Event e, Socket socket) {
         ClientRequestsFile request = (ClientRequestsFile) e;
@@ -385,12 +381,11 @@ public class Controller extends Node implements HeartBeat {
      * Packages and sends off the current file information the Controller is keeping to the client
      *
      * @param e      Event that contains a ClientRequestsFileList, contains an optional path parameter to search through
-     * @param socket
+     * @param socket Socket connection of the client
      */
     private void fileList(Event e, Socket socket) {
         logger.debug("Controller received FileList request");
-        ClientRequestsFileList request = (ClientRequestsFileList) e;
-
+        //ClientRequestsFileList request = (ClientRequestsFileList) e;
         //TODO: logic to handle getting the files in the system, or under the optional path
 
         List<String> files = clusterHandler.getFiles().stream().map(FileMetadata::toString).collect(Collectors.toList());

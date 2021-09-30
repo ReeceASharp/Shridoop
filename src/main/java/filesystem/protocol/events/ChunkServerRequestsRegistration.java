@@ -2,6 +2,8 @@ package filesystem.protocol.events;
 
 import filesystem.protocol.Event;
 
+import java.net.URL;
+
 import static filesystem.protocol.Protocol.CHUNK_SERVER_REQUESTS_REGISTRATION;
 
 /**
@@ -11,15 +13,13 @@ public class ChunkServerRequestsRegistration implements Event {
     static final int type = CHUNK_SERVER_REQUESTS_REGISTRATION;
 
     private final String serverName;
-    private final String originatingHost;
-    private final int originatingPort;
+    private final URL originatingURL;
 
 
 
-    public ChunkServerRequestsRegistration(String serverName, String host, int port) {
+    public ChunkServerRequestsRegistration(String serverName, URL url) {
         this.serverName = serverName;
-        this.originatingHost = host;
-        this.originatingPort = port;
+        this.originatingURL = url;
     }
 
     @Override
@@ -27,12 +27,8 @@ public class ChunkServerRequestsRegistration implements Event {
         return type;
     }
 
-    public String getHost() {
-        return originatingHost;
-    }
-
-    public int getPort() {
-        return originatingPort;
+    public URL getURL() {
+        return originatingURL;
     }
 
     public String getServerName() {
@@ -42,9 +38,8 @@ public class ChunkServerRequestsRegistration implements Event {
     @Override
     public String toString() {
         return "ChunkServerRequestsRegistration{" +
-                       "serverName='" + serverName + '\'' +
-                       ", originatingHost='" + originatingHost + '\'' +
-                       ", originatingPort=" + originatingPort +
+                       "serverName='" + serverName +
+                       ", originatingURL='" + originatingURL +
                        '}';
     }
 }

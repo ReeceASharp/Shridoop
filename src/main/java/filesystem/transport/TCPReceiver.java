@@ -6,11 +6,11 @@ import filesystem.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
-import java.net.SocketException;
+import java.io.EOFException;
+import java.io.IOException;
 
 /*
-This packages a thread around the socket to grab the information being received, then handles the request
+This packages a thread around the socket to grab the information being received, then passes the request off.
  */
 public class TCPReceiver implements Runnable {
     private static final Logger logger = LogManager.getLogger(TCPReceiver.class);
@@ -28,57 +28,51 @@ public class TCPReceiver implements Runnable {
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
-        // add reference to TCPServer to allow it to keep track of all current receiving threads for
-        // this node and clean them up when exiting
-        //server.addConnection(this);
-
-        //temporary values for holding message data
-        Event event;
-        //Socket socket = socketStream.socket;
-        ObjectInputStream inStream = null;
         try {
-            //create the inputstream, and update the reference
-            inStream = new ObjectInputStream(socketStream.socket.getInputStream());
-            socketStream.inStream = inStream;
+            socketStream.setup();
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        //logger.debug("LISTENING ON: " + socketStream);
+        Event event = null;
         while (!socketStream.socket.isClosed()) {
             try {
+
                 try {
-                    synchronized (socketStream.socket) {
-                        event = (Event) inStream.readObject();
-                    }
-                    if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
-                        logger.debug("Received Message: " + event.toString());
-                    node.onEvent(event, socketStream.socket);
+                    event = socketStream.receiveEvent();
+                    if (event == null)
+                        continue;
                 } catch (Exception e) {
+                    // Always try to cleanup on exception, then handle it separately
                     cleanup();
                     throw e;
                 }
+
             } catch (EOFException eof) {
                 // standard exit method, means that the other side closed off its socket, causing this side's socket
                 // to throw this error, which follows the ControllerReportsShutdown control flow
                 logger.debug("Closing up the connection. Proper exit.");
-            } catch (SocketException se) {
-                logger.error(se.getMessage() + ", " + socketStream.socket);
             } catch (IOException ioe) {
                 logger.error("ERROR: Connection closed, no longer listening to: " + socketStream.socket);
-                ioe.printStackTrace();
             } catch (ClassNotFoundException e) {
-                e.printStackTrace();
+                logger.error("Received Invalid Event. Ignoring.");
             }
-        }
-        logger.debug("Exiting: " + socketStream.socket);
 
+            if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
+                logger.debug("Received Message: " + event);
+            node.onEvent(event, socketStream.socket);
+        }
+        logger.debug("Closing socket: " + socketStream.socket);
     }
 
+
     public void cleanup() {
-        // needs to be synchronized as cleanup is a multi-step process, if it only partially runs before something
-        // else attempts to use/modify it, the TCPReceiver is left in an unsafe state
-        socketStream.cleanup();
+        try {
+            socketStream.cleanup();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         server.removeConnection(this);
         node.onLostConnection(this.socketStream.socket);
     }

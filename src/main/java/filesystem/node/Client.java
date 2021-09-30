@@ -4,14 +4,19 @@ import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
-import filesystem.util.*;
+import filesystem.util.Command;
+import filesystem.util.ConsoleParser;
+import filesystem.util.ContactList;
+import filesystem.util.FileChunker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.Socket;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -36,7 +41,7 @@ public class Client extends Node {
     }
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws MalformedURLException {
         String host = args[0];
         int port = Integer.parseInt(args[1]);
 
@@ -44,14 +49,15 @@ public class Client extends Node {
         client.setup();
     }
 
-    private void setup() {
+    private void setup() throws MalformedURLException {
         this.server = new TCPServer(this, 0);
         this.console = new ConsoleParser(this);
 
         new Thread(this.server).start();
         new Thread(this.console).start();
 
-        this.controllerSocket = connect(controllerHost, controllerPort);
+        // TODO: Refactor this to attempt to connect when entering a subset of commands
+        this.controllerSocket = connect(new URL(String.format("%s:%d", controllerHost, controllerPort)));
     }
 
     @Override
@@ -184,11 +190,11 @@ public class Client extends Node {
 
                 // Get the server at the front, the list is generated in a random order at the Controller,
                 // so there's no reason to use further randomness
-                Pair<String, Integer> hostPort = chunkToSend.getServersToContact().remove(0);
+                URL url = chunkToSend.getServersToContact().remove(0);
 
-                SocketStream socketStream = connectionMetadata.getSocketStream(hostPort.getLeft(), hostPort.getRight());
+                SocketStream socketStream = connectionHandler.getSocketStream(url);
                 if (socketStream == null)
-                    socketStream = connect(hostPort.getLeft(), hostPort.getRight());
+                    socketStream = connect(url);
 
                 sendMessage(socketStream, new NodeSendsFileChunk(
                         response.getFile(),

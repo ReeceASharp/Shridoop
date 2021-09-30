@@ -1,7 +1,7 @@
 package filesystem.node;
 
 import filesystem.protocol.Event;
-import filesystem.transport.ConnectionMetadata;
+import filesystem.transport.ConnectionHandler;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPSender;
 import filesystem.transport.TCPServer;
@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,10 +25,10 @@ import java.util.Map;
 public abstract class Node {
     private static final Logger logger = LogManager.getLogger(Node.class);
 
-    public static final int CHUNK_SIZE = Integer.parseInt(Properties.get("CHUNK_SIZE"));
+    public static final int CHUNK_SIZE = Integer.parseInt(Properties.get("CHUNK_SIZE_BYTES"));
 
     public Node() {
-        this.connectionMetadata = new ConnectionMetadata();
+        this.connectionHandler = new ConnectionHandler();
         this.eventActions = new HashMap<>();
 
         this.resolveEventMap();
@@ -35,18 +36,21 @@ public abstract class Node {
 
 
     // Cluster connections
-    public final ConnectionMetadata connectionMetadata;
+    public final ConnectionHandler connectionHandler;
     protected TCPServer server;
     protected ConsoleParser console;
     protected final Map<Integer, EventAction> eventActions;
 
     protected abstract void resolveEventMap();
 
-    protected SocketStream connect(String host, int port) {
+
+
+
+    protected SocketStream connect(URL url) {
         try {
-            Socket connection = new Socket(host, port);
+            Socket connection = new Socket(url.getHost(), url.getPort());
             SocketStream ss = new SocketStream(connection);
-            this.connectionMetadata.addConnection(ss);
+            this.connectionHandler.addConnection(ss);
 
             this.server.addConnection(this, ss);
 
@@ -63,7 +67,7 @@ public abstract class Node {
      * @param event  The message being sent (Uses objects)
      */
     protected void sendMessage(Socket socket, Event event) {
-        sendMessage(connectionMetadata.getSocketStream(socket), event);
+        sendMessage(connectionHandler.getSocketStream(socket), event);
     }
 
     protected void sendMessage(SocketStream ss, Event event) {

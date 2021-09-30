@@ -1,13 +1,13 @@
 package filesystem.util.metadata;
 
-import filesystem.util.Pair;
 import filesystem.util.Properties;
 
+import java.net.URL;
 import java.util.ArrayList;
 
 
 public class FullChunkMetadata extends LiteChunkMetadata {
-    private static final int SLICE_SIZE = Integer.parseInt(Properties.get("SLICE_SIZE"));
+    private static final int SLICE_SIZE = Integer.parseInt(Properties.get("SLICE_SIZE_BYTES"));
 
     private final ArrayList<SliceMetadata> sliceList;
 
@@ -15,7 +15,7 @@ public class FullChunkMetadata extends LiteChunkMetadata {
     public FullChunkMetadata(int chunkNumber,
                              int chunkSize,
                              String chunkHash,
-                             ArrayList<Pair<String, Integer>> serversHoldingChunk,
+                             ArrayList<URL> serversHoldingChunk,
                              byte[] chunkData) {
         super(chunkNumber, chunkSize, chunkHash, serversHoldingChunk);
         this.sliceList = generateSliceMetadata(chunkData);

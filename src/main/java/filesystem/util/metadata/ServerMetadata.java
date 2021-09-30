@@ -1,6 +1,7 @@
 package filesystem.util.metadata;
 
 import java.net.Socket;
+import java.net.URL;
 import java.util.UUID;
 
 /**
@@ -8,16 +9,14 @@ import java.util.UUID;
  */
 public class ServerMetadata {
     public final String serverName;
-    public final String host;
-    public final int port;
+    public final URL url;
     public final Socket socket;
     public final UUID serverID;
     public String heartbeatTimestamp;
 
-    public ServerMetadata(String serverName, String host, int port, Socket socket, String heartbeatTimestamp) {
+    public ServerMetadata(String serverName, URL url, Socket socket, String heartbeatTimestamp) {
         this.serverName = serverName;
-        this.host = host;
-        this.port = port;
+        this.url = url;
         this.socket = socket;
         this.heartbeatTimestamp = heartbeatTimestamp;
         this.serverID = UUID.randomUUID();
@@ -26,9 +25,8 @@ public class ServerMetadata {
     @Override
     public String toString() {
         return "ServerMetadata{" +
-                       "serverName='" + serverName + '\'' +
-                       ", host='" + host + '\'' +
-                       ", port=" + port +
+                       "serverName='" + serverName +
+                       ", url='" + url +
                        ", socket=" + socket +
                        ", serverID=" + serverID +
                        ", heartbeatTimestamp='" + heartbeatTimestamp + '\'' +

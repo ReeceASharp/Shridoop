@@ -1,6 +1,7 @@
 package filesystem.transport;
 
 import java.net.Socket;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -8,11 +9,11 @@ import java.util.Optional;
  * Wraps the socket streams, and holds onto the connection stream information, so that each TCPSender/Receiver
  * isn't reconstructing the objectstreams and causing corruption exceptions.
  */
-public class ConnectionMetadata {
+public class ConnectionHandler {
     private final ArrayList<SocketStream> connections;
 
 
-    public ConnectionMetadata() {
+    public ConnectionHandler() {
         this.connections = new ArrayList<>();
     }
 
@@ -40,14 +41,9 @@ public class ConnectionMetadata {
         return connections.get(index);
     }
 
-    public synchronized SocketStream getSocketStream(String host, int port) {
-        return getSocketStream(String.format("%s:%d", host, port));
-    }
-
-    public synchronized SocketStream getSocketStream(String hostPort) {
-        Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.hostPort.equals(hostPort)).findFirst();
+    public synchronized SocketStream getSocketStream(URL url) {
+        Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.url.equals(url)).findFirst();
         return server.orElse(null);
     }
-
 
 }

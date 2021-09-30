@@ -1,9 +1,9 @@
 package filesystem.protocol.events;
 
 import filesystem.protocol.Event;
-import filesystem.util.*;
 
-import java.util.*;
+import java.net.URL;
+import java.util.ArrayList;
 
 import static filesystem.protocol.Protocol.NODE_SENDS_FILE_CHUNK;
 
@@ -14,13 +14,13 @@ public class NodeSendsFileChunk implements Event {
     private final int chunkNumber;
     private final byte[] chunkData;
     private final String hash;
-    private final ArrayList<Pair<String, Integer>> serversToContact;
+    private final ArrayList<URL> serversToContact;
 
     public NodeSendsFileChunk(String fileName,
                               int chunkNumber,
                               byte[] chunkData,
                               String hash,
-                              ArrayList<Pair<String, Integer>> serversToContact) {
+                              ArrayList<URL> serversToContact) {
         this.fileName = fileName;
         this.chunkNumber = chunkNumber;
         this.chunkData = chunkData;
@@ -44,7 +44,7 @@ public class NodeSendsFileChunk implements Event {
         return chunkData;
     }
 
-    public ArrayList<Pair<String, Integer>> getServersToContact() {
+    public ArrayList<URL> getServersToContact() {
         return serversToContact;
     }
 

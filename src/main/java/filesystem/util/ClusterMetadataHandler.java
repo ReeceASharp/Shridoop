@@ -4,6 +4,7 @@ import filesystem.util.metadata.FileMetadata;
 import filesystem.util.metadata.ServerMetadata;
 
 import java.net.Socket;
+import java.net.URL;
 import java.util.*;
 
 /**
@@ -55,9 +56,9 @@ public class ClusterMetadataHandler {
         currentFiles.put(file, new FileMetadata(file, totalChunks, fileSize));
     }
 
-    public synchronized void addServer(String serverName, String host, int port, Socket socket) {
+    public synchronized void addServer(String serverName, URL url, Socket socket) {
         String heartbeatStamp = Utils.timestampNowString();
-        currentServers.add(new ServerMetadata(serverName, host, port, socket, heartbeatStamp));
+        currentServers.add(new ServerMetadata(serverName, url, socket, heartbeatStamp));
     }
 
     public synchronized boolean removeBySocket(Socket socket) {
@@ -74,6 +75,12 @@ public class ClusterMetadataHandler {
         Optional<ServerMetadata> server = currentServers.stream().filter(metadata -> metadata.socket.equals(socket)).findFirst();
         return server.orElse(null);
     }
+
+    public synchronized ServerMetadata getServer(URL url) {
+        Optional<ServerMetadata> server = currentServers.stream().filter(metadata -> metadata.url.equals(url)).findFirst();
+        return server.orElse(null);
+    }
+
 
     public synchronized void updateHeartBeatBySocket(Socket socket) {
         ServerMetadata server = getServer(socket);

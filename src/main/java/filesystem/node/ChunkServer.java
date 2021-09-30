@@ -3,16 +3,15 @@ package filesystem.node;
 import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
-import filesystem.transport.TCPReceiver;
 import filesystem.transport.TCPServer;
 import filesystem.util.*;
-import filesystem.util.metadata.FileChunkData;
 import filesystem.util.taskscheduler.TaskScheduler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -76,24 +75,22 @@ public class ChunkServer extends Node implements HeartBeat {
      * @throws IOException thrown if the socket creation fails for some reason
      */
     private void sendRegistration(String controllerHost, int controllerPort) throws IOException {
-        //logger.debug(String.format("SENDING REGISTRATION TO %s:%d", host, port));
 
         //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(this.getServerName(),
-                this.getServerHost(),
-                this.getServerPort());
+        Event e = new ChunkServerRequestsRegistration(this.getServerName(), new URL(
+                String.format("%s:%d", this.getServerHost(), this.getServerPort())));
 
         //open a socket/connection with the Controller, and set variables to be referenced later
         Socket controllerSocket = new Socket(controllerHost, controllerPort);
 
         SocketStream ss = new SocketStream(controllerSocket);
-        this.connectionMetadata.addConnection(ss);
-        //create a listener on this new connection to listen for future requests/responses
-        Thread receiver = new Thread(new TCPReceiver(this, ss, this.server));
-        receiver.start();
+        this.connectionHandler.addConnection(ss);
+
+        ////create a listener on this new connection to listen for future requests/responses
+        //Thread receiver = new Thread(new TCPReceiver(this, ss, this.server));
+        //receiver.start();
 
         //Send the message to the Registry to attempt registration
-        //logger.debug(node.connectionHandler);
         this.sendMessage(controllerSocket, e);
     }
 
@@ -127,8 +124,9 @@ public class ChunkServer extends Node implements HeartBeat {
 
     @Override
     public void cleanup() {
-        logger.debug("EXITING CHUNKSERVER");
+        logger.debug("Exiting" + this.getClass().getCanonicalName());
 
+        timer.stopTasks();
         server.cleanup();
 
         // Note: because the console has a Scanner waiting for an input from System.in,
@@ -138,9 +136,7 @@ public class ChunkServer extends Node implements HeartBeat {
     }
 
     @Override
-    public void onLostConnection(Socket socket) {
-        //IGNORE
-    }
+    public void onLostConnection(Socket socket) {}
 
     @Override
     public Map<String, Command> getCommandList() {
@@ -155,10 +151,8 @@ public class ChunkServer extends Node implements HeartBeat {
     private String listChunks() {
         StringBuilder sb = new StringBuilder();
         appendLn(sb, "Home path: " + homePath);
-        appendLn(sb, "***********************");
-        for (FileChunkData smd : fileHandler.getFileChunks())
-            appendLn(sb, smd.toString());
-        appendLn(sb, "***********************");
+        sb.append(Utils.GenericListFormatter.getFormattedOutput(
+                fileHandler.getFileChunks(), "|", true));
         return sb.toString();
     }
 
@@ -173,14 +167,10 @@ public class ChunkServer extends Node implements HeartBeat {
     }
 
     @Override
-    protected void cacheInfo() {
-
-    }
+    protected void cacheInfo() {}
 
     @Override
-    protected void updateFromCache() {
-
-    }
+    protected void updateFromCache() {}
 
     private void registrationStatus(Event e, Socket socket) {
         ControllerReportsRegistrationStatus response = (ControllerReportsRegistrationStatus) e;
@@ -273,24 +263,22 @@ public class ChunkServer extends Node implements HeartBeat {
         //Store the update in
 
         //update the contact details
-        ArrayList<Pair<String, Integer>> serversToContact = request.getServersToContact();
+        ArrayList<URL> serversToContact = request.getServersToContact();
         if (serversToContact.isEmpty()) {
             logger.debug("Completed Replication of file chunk: " + fileName);
             return;
         }
 
-        //TODO: Fetch the full address of the next ChunkServer, not just the port. This means the request should contain
-        // a datastructure that holds more metadata
-        Pair<String, Integer> hostPort = serversToContact.remove(0);
+        URL address = serversToContact.remove(0);
 
         // Check if there is already a connection
-        SocketStream socketStream = connectionMetadata.getSocketStream(hostPort.getLeft(), hostPort.getRight());
+        SocketStream socketStream = connectionHandler.getSocketStream(address);
         if (socketStream == null) {
             logger.debug("Generating new Connection.");
-            socketStream = connect(hostPort.getLeft(), hostPort.getRight());
+            socketStream = connect(address);
         }
 
-        //Can reuse the message, as it's the same data, just with an updated
+        //Can reuse the message, as it's the same data, just with an updated data-structure
         sendMessage(socketStream.socket, request);
     }
 
@@ -302,7 +290,7 @@ public class ChunkServer extends Node implements HeartBeat {
 
         // get controller socket, because that is always the initial connection used, it's
         // the first index in the known connection list
-        sendMessage(connectionMetadata.getSocketStream(0).socket, event);
+        sendMessage(connectionHandler.getSocketStream(0).socket, event);
     }
 
     private Event constructMajorHeartbeat() {

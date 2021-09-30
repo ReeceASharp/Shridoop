@@ -1,6 +1,19 @@
 package filesystem.protocol;
 
-public class Protocol {
+
+/**
+ * Holds all constants and IDs relating to objects traveling over sockets. These are used to direct functionality on
+ * actions to be taken when the object arrives ar its destination.
+ *
+ * Note: This holds quite a few constants. While this is sort of an anti-pattern as it gets larger, every variable
+ * here isn't coupled with only one class, thus necessitating a central location to import from. The integer values
+ * are irrelevant, they just need to be able to be unique.
+ */
+public final class Protocol {
+
+    private Protocol() {}
+
+    //
     public static final int RESPONSE_SUCCESS = 10;
 
     public static final int RESPONSE_FAILURE = 20;
@@ -8,6 +21,7 @@ public class Protocol {
     public static final int RESPONSE_FAILURE_DUPLICATE_PATH = 22;
 
 
+    // Heartbeat
     public static final int HEARTBEAT_MINOR = 50;
     public static final int HEARTBEAT_MAJOR = 51;
     public static final int HEARTBEAT_IGNORE_TYPE = 52;

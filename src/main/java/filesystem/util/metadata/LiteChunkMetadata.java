@@ -1,7 +1,6 @@
 package filesystem.util.metadata;
 
-import filesystem.util.Pair;
-
+import java.net.URL;
 import java.util.ArrayList;
 
 
@@ -11,15 +10,15 @@ import java.util.ArrayList;
  * Default size of Chunk is 64kb
  */
 public class LiteChunkMetadata {
-    int chunkNumber;
-    int chunkSize;
-    String chunkHash;
-    ArrayList<Pair<String, Integer>> serversHoldingChunk;
+    public int chunkNumber;
+    public int chunkSize;
+    public String chunkHash;
+    public ArrayList<URL> serversHoldingChunk;
 
     public LiteChunkMetadata(int chunkNumber,
                              int chunkSize,
                              String chunkHash,
-                             ArrayList<Pair<String, Integer>> serversHoldingChunk) {
+                             ArrayList<URL> serversHoldingChunk) {
         this.chunkNumber = chunkNumber;
         this.chunkSize = chunkSize;
         this.chunkHash = chunkHash;
