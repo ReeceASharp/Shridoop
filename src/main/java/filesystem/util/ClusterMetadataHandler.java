@@ -1,38 +1,17 @@
 package filesystem.util;
 
-import filesystem.util.metadata.FileMetadata;
-import filesystem.util.metadata.ServerMetadata;
+import filesystem.node.metadata.FileMetadata;
 
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URL;
 import java.util.*;
 
 /**
  * This object contains all useful information about the cluster. It is updated by the heartbeats send to and from
- * the ChunkServers along with containing startup information
- * <p>
- * ServerMetadata
- * - Current ChunkServers
- * - Host
- * - port
- * - socket
- * - serverName
- * - timestamp of last heartbeat
- * - ID to uniquely identify server, used by the FileMetadata to
- * reference the servers holding chunks
- * <p>
- * FileMetadata
- * - Master list of files
- * - name of file
- * - # of chunks
- * - size of file
- * - complete file hash
- * - ChunkList
- * - chunkNumber
- * - ChunkServers holding that file chunk
+ * the ChunkHolders along with containing startup information
  */
 public class ClusterMetadataHandler {
-    private final ArrayList<ServerMetadata> currentServers;
+    private final ArrayList<HolderMetadata> currentServers;
     private final Map<String, FileMetadata> currentFiles;
 
     public ClusterMetadataHandler() {
@@ -48,7 +27,7 @@ public class ClusterMetadataHandler {
         return currentFiles.getOrDefault(filePath, null);
     }
 
-    public ArrayList<ServerMetadata> getServers() {
+    public ArrayList<HolderMetadata> getServers() {
         return currentServers;
     }
 
@@ -56,9 +35,9 @@ public class ClusterMetadataHandler {
         currentFiles.put(file, new FileMetadata(file, totalChunks, fileSize));
     }
 
-    public synchronized void addServer(String serverName, URL url, Socket socket) {
+    public synchronized void addServer(String serverName, InetSocketAddress address, Socket socket) {
         String heartbeatStamp = Utils.timestampNowString();
-        currentServers.add(new ServerMetadata(serverName, url, socket, heartbeatStamp));
+        currentServers.add(new HolderMetadata(serverName, address, socket, heartbeatStamp));
     }
 
     public synchronized boolean removeBySocket(Socket socket) {
@@ -71,21 +50,53 @@ public class ClusterMetadataHandler {
      * @param socket
      * @return
      */
-    public synchronized ServerMetadata getServer(Socket socket) {
-        Optional<ServerMetadata> server = currentServers.stream().filter(metadata -> metadata.socket.equals(socket)).findFirst();
+    public synchronized HolderMetadata getServer(Socket socket) {
+        Optional<HolderMetadata> server = currentServers.stream().filter(metadata -> metadata.socket.equals(socket)).findFirst();
         return server.orElse(null);
     }
 
-    public synchronized ServerMetadata getServer(URL url) {
-        Optional<ServerMetadata> server = currentServers.stream().filter(metadata -> metadata.url.equals(url)).findFirst();
+    public synchronized HolderMetadata getServer(InetSocketAddress address) {
+        Optional<HolderMetadata> server = currentServers.stream().filter(metadata -> metadata.address.equals(address)).findFirst();
         return server.orElse(null);
     }
 
 
     public synchronized void updateHeartBeatBySocket(Socket socket) {
-        ServerMetadata server = getServer(socket);
+        HolderMetadata server = getServer(socket);
         if (server == null)
             return;
         server.heartbeatTimestamp = Utils.timestampNowString();
+    }
+
+    /**
+     * Used by the
+     */
+    public static class HolderMetadata {
+        public final String serverName;
+        public final InetSocketAddress address;
+        public final Socket socket;
+        public final UUID serverID;
+        public String heartbeatTimestamp;
+
+        public HolderMetadata(String serverName, InetSocketAddress address, Socket socket, String heartbeatTimestamp) {
+            this.serverName = serverName;
+            this.address = address;
+            this.socket = socket;
+            this.heartbeatTimestamp = heartbeatTimestamp;
+            this.serverID = UUID.randomUUID();
+        }
+
+        @Override
+        public String toString() {
+            return "ServerMetadata{" +
+                           "serverName='" + serverName +
+                           ", address='" + address +
+                           ", socket=" + socket +
+                           ", serverID=" + serverID +
+                           ", heartbeatTimestamp='" + heartbeatTimestamp + '\'' +
+                           '}';
+        }
+
+
     }
 }

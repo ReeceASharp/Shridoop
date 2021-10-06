@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 /**
  * Keeps track of all intermediate changes inside a Chunk Server using records
- * Each relevant event will also create a record inside of the RecordKeeper. This
+ * Each relevant event will also create a record inside the RecordKeeper. This
  * list is then passed to from the Chunk Server to the Controller during the
  * minor heartbeats.
  */
@@ -23,8 +23,14 @@ public class RecordKeeper {
         records.clear();
     }
 
-    public ArrayList<Record> getRecords() {
-        return records;
+    public ArrayList<Record> getRecords(boolean clear) {
+        // Returning a deep-copy when the list isn't being
+        if (clear) {
+            ArrayList<Record> recordCache = new ArrayList<>(records);
+            records.clear();
+            return recordCache;
+        }
+        return new ArrayList<>(records);
     }
 
 }

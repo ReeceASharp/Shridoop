@@ -37,7 +37,7 @@ matrix() {
   echo 'Waiting 5 seconds for the Controller to start up'
   sleep 5
   clear
-  java -cp target/Distributed_File_System-*.jar filesystem.node.ChunkServer localhost 7000
+  java -cp target/Distributed_File_System-*.jar filesystem.node.ChunkHolder localhost 7000
 }
 
 

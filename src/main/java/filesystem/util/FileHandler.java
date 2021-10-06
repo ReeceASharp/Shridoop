@@ -1,34 +1,42 @@
 package filesystem.util;
 
-import filesystem.util.metadata.FileChunkData;
+import filesystem.node.metadata.ChunkMetadata;
+import filesystem.protocol.RecordKeeper;
+import filesystem.protocol.records.ChunkAdd;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import static filesystem.util.Utils.appendLn;
+import static filesystem.util.Utils.resolveFileName;
 
 /**
- * Goal of the fileHandler is to keep track of the files, used by the ChunkServer
+ * Goal of the fileHandler is to keep track of the files, used by the ChunkHolder
  */
 public class FileHandler {
-    //list of known chunks stored by the ChunkServer
-    private final ArrayList<FileChunkData> fileChunks;
-    // TODO: Move over this system to the full metadata version, which supports checksum slice handling
-    //private final ArrayList<FullChunkMetadata> fileChunks;
+    //list of known chunks stored by the ChunkHolder
+    private final Map<String, ArrayList<ChunkMetadata>> fileChunks;
+    private final RecordKeeper recordKeeper;
 
     //path of where the FileHandler starts its storage system
-    private final Path homePath;
+    protected final Path homePath;
 
     public FileHandler(String homePath) {
         this.homePath = Paths.get(homePath);
-        this.fileChunks = new ArrayList<>();
+        this.recordKeeper = new RecordKeeper();
+        this.fileChunks = new HashMap<>();
     }
 
 
     public synchronized byte[] getFileData(String file) {
 
-        Path absolutePath = resolveFileName(file);
+        Path absolutePath = resolveFileName(homePath, Paths.get(file));
         byte[] fileData = null;
         try {
             fileData = Files.readAllBytes(absolutePath);
@@ -38,54 +46,51 @@ public class FileHandler {
         return fileData;
     }
 
-    /**
-     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
-     * pathname of requested file
-     *
-     * @param localPath
-     * @return
-     */
-    private Path resolveFileName(String localPath) {
-        Path resolvedPath = homePath.resolve(localPath);
-        return resolvedPath.toAbsolutePath();
+    public synchronized void storeFileChunk(String path, ChunkMetadata cmd, byte[] chunkData,boolean writeToDisk) {
+        //use full-path to store data
+        Path fullPath = resolveFileName(homePath, Paths.get(path));
+
+        if (writeToDisk)
+            writeDataToDisk(fullPath, chunkData);
+
+        if (!fileChunks.containsKey(path)) {
+            fileChunks.put(path, new ArrayList<>());
+        }
+        fileChunks.get(path).add(cmd);
+
+        //Store the update in records to be sent to the Controller
+        recordKeeper.addRecord(new ChunkAdd(path, cmd.chunkNumber, cmd.chunkHash));
     }
 
-    public synchronized void storeFileChunk(String path, byte[] chunkData, String fileHash) {
-        //output to
-
-        Path localPath = Paths.get(path);
-        fileChunks.add(new FileChunkData(localPath, 1, fileHash));
-
-        //use full path to store data
-        Path fullPath = resolveFileName(localPath);
-
+    public synchronized void writeDataToDisk(Path fullPath, byte[] data) {
         //create a file using the full path to output to
         File file = new File(fullPath.toString());
         try (OutputStream os = new FileOutputStream(file)) {
-            os.write(chunkData);
+            os.write(data);
             os.flush();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        //TODO: generate slices + SHA1 values
-
     }
 
-    /**
-     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
-     * pathname of requested file
-     *
-     * @return
-     */
-    private Path resolveFileName(Path localPath) {
-        Path resolvedPath = homePath.resolve(localPath);
-        return resolvedPath.toAbsolutePath();
-    }
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        appendLn(sb, String.format("Path: %s", homePath));
 
-    public synchronized ArrayList<FileChunkData> getFileChunks() {
-        return fileChunks;
+        boolean showFieldNames = true;
+
+        for (Entry<String, ArrayList<ChunkMetadata>> file : fileChunks.entrySet()) {
+            String chunkDump = Utils.GenericListFormatter.getFormattedOutput(file.getValue(), "|", showFieldNames);
+            sb.append(chunkDump);
+
+            // Show only the field names at the top
+            if (showFieldNames)
+                showFieldNames = false;
+        }
+
+        sb.append(Utils.GenericListFormatter.getFormattedOutput(recordKeeper.getRecords(false), "|", showFieldNames));
+
+        return sb.toString();
     }
 }

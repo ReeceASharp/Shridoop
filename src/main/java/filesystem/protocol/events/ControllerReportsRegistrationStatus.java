@@ -5,7 +5,7 @@ import filesystem.protocol.Event;
 import static filesystem.protocol.Protocol.CONTROLLER_REPORTS_REGISTRATION_STATUS;
 
 /**
- * Sent from the Controller to the ChunkServer acknowledging the server is setup and ready to go
+ * Sent from the Controller to the ChunkHolder acknowledging the server is setup and ready to go
  */
 public class ControllerReportsRegistrationStatus implements Event {
     static final int type = CONTROLLER_REPORTS_REGISTRATION_STATUS;

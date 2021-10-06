@@ -13,8 +13,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,12 +46,11 @@ public abstract class Node {
 
 
 
-    protected SocketStream connect(URL url) {
+    protected SocketStream connect(InetSocketAddress address) {
         try {
-            Socket connection = new Socket(url.getHost(), url.getPort());
+            Socket connection = new Socket(address.getAddress(), address.getPort());
             SocketStream ss = new SocketStream(connection);
             this.connectionHandler.addConnection(ss);
-
             this.server.addConnection(this, ss);
 
             return ss;
@@ -71,6 +70,7 @@ public abstract class Node {
     }
 
     protected void sendMessage(SocketStream ss, Event event) {
+        logger.info(event + " -> " + ss);
         new Thread(new TCPSender(ss, event)).start();
     }
 

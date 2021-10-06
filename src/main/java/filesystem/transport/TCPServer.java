@@ -61,9 +61,9 @@ public class TCPServer implements Runnable {
                 new Thread(new TCPReceiver(node, ss, this)).start();
             }
         } catch (SocketException e) {
-            System.out.println("Exiting.");
         } catch (IOException e) {
-            logger.error("Received an unhandled exception." + e.getMessage());
+            logger.error("Received an unhandled exception. " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

@@ -11,7 +11,7 @@
 # Chunk Servers
 CHUNK_SERVERS=3
 for (( i = 0; i < CHUNK_SERVERS; i++ )); do
-    /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.ChunkServer" &
+    /git-bash.exe -li -c "java -cp target/*.jar fileSystem.node.ChunkHolder" &
 done
 
 # Client(s)

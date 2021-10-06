@@ -14,9 +14,8 @@ import org.apache.logging.log4j.Logger;
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -27,21 +26,19 @@ import static filesystem.protocol.Protocol.*;
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
 
-    private final String controllerHost;
-    private final int controllerPort;
+    private final InetSocketAddress controllerAddress;
     private final Map<String, String> intermediateFilePaths;
     private SocketStream controllerSocket;
 
     public Client(String host, int port) {
         super();
 
-        this.controllerHost = host;
-        this.controllerPort = port;
+        this.controllerAddress = new InetSocketAddress(host, port);
         this.intermediateFilePaths = new HashMap<>();
     }
 
 
-    public static void main(String[] args) throws MalformedURLException {
+    public static void main(String[] args) {
         String host = args[0];
         int port = Integer.parseInt(args[1]);
 
@@ -49,7 +46,7 @@ public class Client extends Node {
         client.setup();
     }
 
-    private void setup() throws MalformedURLException {
+    private void setup() {
         this.server = new TCPServer(this, 0);
         this.console = new ConsoleParser(this);
 
@@ -57,7 +54,7 @@ public class Client extends Node {
         new Thread(this.console).start();
 
         // TODO: Refactor this to attempt to connect when entering a subset of commands
-        this.controllerSocket = connect(new URL(String.format("%s:%d", controllerHost, controllerPort)));
+        this.controllerSocket = connect(controllerAddress);
     }
 
     @Override
@@ -67,7 +64,7 @@ public class Client extends Node {
         this.eventActions.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
         this.eventActions.put(CONTROLLER_REPORTS_CHUNK_ADD_LIST, this::sendChunks);
         this.eventActions.put(CONTROLLER_REPORTS_FILE_REMOVE_STATUS, this::deleteStatus);
-        // ChunkServer -> Client
+        // ChunkHolder -> Client
         this.eventActions.put(CHUNK_SERVER_SENDS_FILE_CHUNK, this::displayStoredFiles);
     }
 
@@ -168,7 +165,7 @@ public class Client extends Node {
     private void fetchChunks(Event e, Socket socket) {
         ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
 
-        //TODO: handle logic of querying the ChunkServers
+        //TODO: handle logic of querying the ChunkHolders
         logger.debug(response.getChunkLocations());
 
         // For each chunk in the fetchlist, pick a random server and send a
@@ -190,11 +187,11 @@ public class Client extends Node {
 
                 // Get the server at the front, the list is generated in a random order at the Controller,
                 // so there's no reason to use further randomness
-                URL url = chunkToSend.getServersToContact().remove(0);
+                InetSocketAddress address = chunkToSend.getServersToContact().remove(0);
 
-                SocketStream socketStream = connectionHandler.getSocketStream(url);
+                SocketStream socketStream = connectionHandler.getSocketStream(address);
                 if (socketStream == null)
-                    socketStream = connect(url);
+                    socketStream = connect(address);
 
                 sendMessage(socketStream, new NodeSendsFileChunk(
                         response.getFile(),

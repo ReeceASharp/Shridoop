@@ -3,8 +3,9 @@ package filesystem.protocol;
 import java.io.Serializable;
 
 public interface Record extends Serializable {
-    int FILE_ADD = 1;
-    int FILE_DELETE = 2;
+    int CHUNK_ADD = 1;
+    int CHUNK_UPDATE = 2;
+//    int FILE_DELETE = 3;
 
     int getType();
 }

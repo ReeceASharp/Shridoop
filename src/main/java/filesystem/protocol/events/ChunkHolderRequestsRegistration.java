@@ -2,24 +2,24 @@ package filesystem.protocol.events;
 
 import filesystem.protocol.Event;
 
-import java.net.URL;
+import java.net.InetSocketAddress;
 
 import static filesystem.protocol.Protocol.CHUNK_SERVER_REQUESTS_REGISTRATION;
 
 /**
  * Sent from the Chunk Server to the Controller when it has finished setting up
  */
-public class ChunkServerRequestsRegistration implements Event {
+public class ChunkHolderRequestsRegistration implements Event {
     static final int type = CHUNK_SERVER_REQUESTS_REGISTRATION;
 
     private final String serverName;
-    private final URL originatingURL;
+    private final InetSocketAddress holderAddress;
 
 
 
-    public ChunkServerRequestsRegistration(String serverName, URL url) {
+    public ChunkHolderRequestsRegistration(String serverName, InetSocketAddress address) {
         this.serverName = serverName;
-        this.originatingURL = url;
+        this.holderAddress = address;
     }
 
     @Override
@@ -27,8 +27,8 @@ public class ChunkServerRequestsRegistration implements Event {
         return type;
     }
 
-    public URL getURL() {
-        return originatingURL;
+    public InetSocketAddress getHolderAddress() {
+        return holderAddress;
     }
 
     public String getServerName() {
@@ -37,9 +37,9 @@ public class ChunkServerRequestsRegistration implements Event {
 
     @Override
     public String toString() {
-        return "ChunkServerRequestsRegistration{" +
+        return "ChunkHolderRequestsRegistration{" +
                        "serverName='" + serverName +
-                       ", originatingURL='" + originatingURL +
+                       ", getHolderAddress='" + holderAddress +
                        '}';
     }
 }

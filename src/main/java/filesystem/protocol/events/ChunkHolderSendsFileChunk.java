@@ -3,11 +3,11 @@ package filesystem.protocol.events;
 import filesystem.protocol.Event;
 import filesystem.protocol.Protocol;
 
-public class ChunkServerSendsFileChunk implements Event {
+public class ChunkHolderSendsFileChunk implements Event {
     private static final int type = Protocol.CHUNK_SERVER_SENDS_FILE_CHUNK;
     final byte[] fileData;
 
-    public ChunkServerSendsFileChunk(byte[] fileData) {
+    public ChunkHolderSendsFileChunk(byte[] fileData) {
         this.fileData = fileData;
     }
 
@@ -18,7 +18,7 @@ public class ChunkServerSendsFileChunk implements Event {
 
     @Override
     public String toString() {
-        return "ChunkServerSendsFileChunk{" +
+        return "ChunkHolderSendsFileChunk{" +
                        "fileDataLength=" + fileData.length +
                        '}';
     }

@@ -3,6 +3,7 @@ package filesystem.util;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +15,29 @@ public final class Utils {
 
     public static String timestampNowString() {
         return Instant.now().toString();
+    }
+
+    /**
+     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
+     * pathname of requested file
+     *
+     * @return String containing the absolute path of the two combined paths
+     */
+    public static Path resolveFileName(Path mainPath, Path localPath) {
+        Path resolvedPath = mainPath.resolve(localPath);
+        return resolvedPath.toAbsolutePath();
+    }
+
+    /**
+     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
+     * pathname of requested file
+     *
+     * @param localPath
+     * @return
+     */
+    public Path resolveFileName(Path mainPath, String localPath) {
+        Path resolvedPath = mainPath.resolve(localPath);
+        return resolvedPath.toAbsolutePath();
     }
 
 

@@ -7,11 +7,11 @@ import static filesystem.protocol.Protocol.CLIENT_REQUESTS_FILE;
 public class ClientRequestsFile implements Event {
     private static final int type = CLIENT_REQUESTS_FILE;
 
-    private final String file;
+    private final String filePath;
 
 
     public ClientRequestsFile(String file) {
-        this.file = file;
+        this.filePath = file;
     }
 
 
@@ -20,14 +20,14 @@ public class ClientRequestsFile implements Event {
         return type;
     }
 
-    public String getFile() {
-        return file;
+    public String getFilePath() {
+        return filePath;
     }
 
     @Override
     public String toString() {
         return "ClientRequestsFile{" +
-                       "file='" + file + '\'' +
+                       "file='" + filePath + '\'' +
                        '}';
     }
 }

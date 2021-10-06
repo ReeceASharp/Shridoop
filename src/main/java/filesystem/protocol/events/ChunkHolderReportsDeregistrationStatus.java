@@ -5,10 +5,10 @@ import filesystem.protocol.Event;
 import static filesystem.protocol.Protocol.CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS;
 
 /**
- * Sent from the ChunkServer to the Controller confirming its request to deregister, and by
+ * Sent from the ChunkHolder to the Controller confirming its request to deregister, and by
  * extension shutdown
  */
-public class ChunkServerReportsDeregistrationStatus implements Event {
+public class ChunkHolderReportsDeregistrationStatus implements Event {
     static final int type = CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS;
 
     private final int status;
@@ -16,7 +16,7 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
     private final int originatingPort;
     private final String name;
 
-    public ChunkServerReportsDeregistrationStatus(int status, String ip, int port, String name) {
+    public ChunkHolderReportsDeregistrationStatus(int status, String ip, int port, String name) {
         this.status = status;
         originatingIP = ip;
         originatingPort = port;
@@ -46,7 +46,7 @@ public class ChunkServerReportsDeregistrationStatus implements Event {
 
     @Override
     public String toString() {
-        return "ChunkServerReportsDeregistrationStatus{" +
+        return "ChunkHolderReportsDeregistrationStatus{" +
                        "status=" + status +
                        ", originatingIP='" + originatingIP + '\'' +
                        ", originatingPort=" + originatingPort +

@@ -51,7 +51,7 @@ inside of `./target`
 ##### Client  
 ![](image/terminal_client.png?raw=true)
 
-##### ChunkServer  
+##### ChunkHolder  
 ![](image/terminal_chunk_server_yellow.png?raw=true)
 
 ##### Filesystem  

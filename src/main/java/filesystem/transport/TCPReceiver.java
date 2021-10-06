@@ -2,7 +2,6 @@ package filesystem.transport;
 
 import filesystem.node.Node;
 import filesystem.protocol.Event;
-import filesystem.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,11 +27,6 @@ public class TCPReceiver implements Runnable {
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
-        try {
-            socketStream.setup();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
         Event event = null;
         while (!socketStream.socket.isClosed()) {
@@ -58,7 +52,7 @@ public class TCPReceiver implements Runnable {
                 logger.error("Received Invalid Event. Ignoring.");
             }
 
-            if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
+            //if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
                 logger.debug("Received Message: " + event);
             node.onEvent(event, socketStream.socket);
         }

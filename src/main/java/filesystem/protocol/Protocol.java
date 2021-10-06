@@ -26,14 +26,14 @@ public final class Protocol {
     public static final int HEARTBEAT_MAJOR = 51;
     public static final int HEARTBEAT_IGNORE_TYPE = 52;
 
-    // Controller -> ChunkServer
+    // Controller -> ChunkHolder
     public static final int CONTROLLER_REPORTS_REGISTRATION_STATUS = 100;
     public static final int CONTROLLER_REQUESTS_DEREGISTRATION = 101;
     public static final int CONTROLLER_REPORTS_SHUTDOWN = 102;
     public static final int CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT = 103;
     public static final int CONTROLLER_REQUESTS_CHUNK_DELETE = 104;
 
-    // ChunkServer -> Controller
+    // ChunkHolder -> Controller
     public static final int CHUNK_SERVER_REQUESTS_REGISTRATION = 110;
     public static final int CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS = 111;
     public static final int CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT = 112;
@@ -41,7 +41,7 @@ public final class Protocol {
     public static final int CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT = 114;
 
 
-    // ChunkServer -> ChunkServer
+    // ChunkHolder -> ChunkHolder
     public static final int CHUNK_SERVER_REQUESTS_REPLICATION = 120;
     public static final int CHUNK_SERVER_REPORTS_REPLICATION = 121;
 
@@ -61,11 +61,11 @@ public final class Protocol {
     //public static final int CLIENT_REQUESTS_CHUNK_SERVER_METADATA = 144;
 
 
-    // Client -> ChunkServer
+    // Client -> ChunkHolder
     public static final int CLIENT_REQUESTS_FILE_CHUNK = 150;
     public static final int NODE_SENDS_FILE_CHUNK = 151;
 
-    // ChunkServer -> Client
+    // ChunkHolder -> Client
     public static final int CHUNK_SERVER_SENDS_FILE_CHUNK = 161;
 
 }

@@ -4,12 +4,12 @@ import filesystem.protocol.Event;
 
 import static filesystem.protocol.Protocol.CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT;
 
-public class ChunkServerReportsHeartbeat implements Event {
+public class ChunkHolderReportsHeartbeat implements Event {
     private static final int type = CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT;
 
     private final int status;
 
-    public ChunkServerReportsHeartbeat(int status) {
+    public ChunkHolderReportsHeartbeat(int status) {
         this.status = status;
     }
 
@@ -24,7 +24,7 @@ public class ChunkServerReportsHeartbeat implements Event {
 
     @Override
     public String toString() {
-        return "ChunkServerReportsFunctionalHeartbeat{" +
+        return "ChunkHolderReportsFunctionalHeartbeat{" +
                        "status=" + status +
                        '}';
     }

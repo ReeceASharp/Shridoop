@@ -1,7 +1,7 @@
 package filesystem.util;
 
 import java.io.Serializable;
-import java.net.URL;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 
 /**
@@ -12,9 +12,9 @@ import java.util.ArrayList;
  */
 public class ContactList implements Serializable {
     private final int chunkNumber;
-    private final ArrayList<URL> serversToContact;
+    private final ArrayList<InetSocketAddress> serversToContact;
 
-    public ContactList(int chunkNumber, ArrayList<URL> serversToContact) {
+    public ContactList(int chunkNumber, ArrayList<InetSocketAddress> serversToContact) {
         this.chunkNumber = chunkNumber;
         this.serversToContact = serversToContact;
     }
@@ -36,7 +36,7 @@ public class ContactList implements Serializable {
      *
      * @return Returns a list of servers that contain/will contain this chunk
      */
-    public ArrayList<URL> getServersToContact() {
+    public ArrayList<InetSocketAddress> getServersToContact() {
         return serversToContact;
     }
 

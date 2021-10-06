@@ -1,7 +1,7 @@
 package filesystem.transport;
 
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -41,8 +41,8 @@ public class ConnectionHandler {
         return connections.get(index);
     }
 
-    public synchronized SocketStream getSocketStream(URL url) {
-        Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.url.equals(url)).findFirst();
+    public synchronized SocketStream getSocketStream(InetSocketAddress address) {
+        Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.address.equals(address)).findFirst();
         return server.orElse(null);
     }
 

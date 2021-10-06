@@ -1,5 +1,6 @@
 package filesystem.node;
 
+import filesystem.node.metadata.ChunkMetadata;
 import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
@@ -10,8 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -19,12 +20,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static filesystem.protocol.Protocol.*;
-import static filesystem.util.Utils.appendLn;
 
-public class ChunkServer extends Node implements HeartBeat {
-
-
-    private static final Logger logger = LogManager.getLogger(ChunkServer.class);
+public class ChunkHolder extends Node implements HeartBeat {
+    private static final Logger logger = LogManager.getLogger(ChunkHolder.class);
 
     //needed for console commands, not the most DRY
     private final String serverName;
@@ -32,7 +30,7 @@ public class ChunkServer extends Node implements HeartBeat {
     private final FileHandler fileHandler;
     private TaskScheduler timer;
 
-    public ChunkServer(String serverName, String homePath) {
+    public ChunkHolder(String serverName, String homePath) {
         super();
 
         this.serverName = serverName;
@@ -48,7 +46,7 @@ public class ChunkServer extends Node implements HeartBeat {
         final String serverName = args[3];
         final String homePath = args[4];
 
-        ChunkServer server = new ChunkServer(serverName, homePath);
+        ChunkHolder server = new ChunkHolder(serverName, homePath);
         server.setup(controllerHost, controllerPort, listenPort);
 
         logger.debug(String.format("Listen: %d, serverName: %s, StoragePath: %s", listenPort, serverName, homePath));
@@ -61,38 +59,18 @@ public class ChunkServer extends Node implements HeartBeat {
         this.server = new TCPServer(this, listenPort);
         this.console = new ConsoleParser(this);
 
+        SocketStream ss = new SocketStream(new Socket(controllerHost, controllerPort));
+        this.connectionHandler.addConnection(ss);
+
         new Thread(this.server).start();
         new Thread(this.console).start();
 
-        this.sendRegistration(controllerHost, controllerPort);
+        Event e = new ChunkHolderRequestsRegistration(this.getServerName(), new InetSocketAddress(
+                this.getServerHost(), this.getServerPort()));
+
+        this.sendMessage(ss, e);
     }
 
-    /**
-     * Chunk Server wants to register with the Controller after setting up, throw a message at it to check
-     *
-     * @param controllerHost The hostname/IP of the ChunkServer
-     * @param controllerPort The port of the ChunkServer
-     * @throws IOException thrown if the socket creation fails for some reason
-     */
-    private void sendRegistration(String controllerHost, int controllerPort) throws IOException {
-
-        //construct the message, and get the bytes
-        Event e = new ChunkServerRequestsRegistration(this.getServerName(), new URL(
-                String.format("%s:%d", this.getServerHost(), this.getServerPort())));
-
-        //open a socket/connection with the Controller, and set variables to be referenced later
-        Socket controllerSocket = new Socket(controllerHost, controllerPort);
-
-        SocketStream ss = new SocketStream(controllerSocket);
-        this.connectionHandler.addConnection(ss);
-
-        ////create a listener on this new connection to listen for future requests/responses
-        //Thread receiver = new Thread(new TCPReceiver(this, ss, this.server));
-        //receiver.start();
-
-        //Send the message to the Registry to attempt registration
-        this.sendMessage(controllerSocket, e);
-    }
 
     public String getServerName() {
         return serverName;
@@ -101,7 +79,7 @@ public class ChunkServer extends Node implements HeartBeat {
     @Override
     protected void resolveEventMap() {
         this.eventActions.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
-        this.eventActions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deregistration);
+        this.eventActions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deRegistration);
         this.eventActions.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
         this.eventActions.put(CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT, this::respondWithStatus);
         //this.eventActions.put(CHUNK_SERVER_REQUESTS_REPLICATION, this::respondWithStatus);
@@ -113,13 +91,13 @@ public class ChunkServer extends Node implements HeartBeat {
     @Override
     public String help() {
         return "This is strictly used for development and to see system details locally. " +
-                       "Available commands are shown with 'commands'.";
+                "Available commands are shown with 'commands'.";
     }
 
     @Override
     public String intro() {
-        return "Distributed System ChunkServer (DEV ONLY), type " +
-                       "'help' for more details: ";
+        return "Distributed System ChunkHolder (DEV ONLY), type " +
+                "'help' for more details: ";
     }
 
     @Override
@@ -136,7 +114,9 @@ public class ChunkServer extends Node implements HeartBeat {
     }
 
     @Override
-    public void onLostConnection(Socket socket) {}
+    public void onLostConnection(Socket ignored) {
+        // Chances are good this will never need to be implemented,
+    }
 
     @Override
     public Map<String, Command> getCommandList() {
@@ -150,29 +130,35 @@ public class ChunkServer extends Node implements HeartBeat {
 
     private String listChunks() {
         StringBuilder sb = new StringBuilder();
-        appendLn(sb, "Home path: " + homePath);
-        sb.append(Utils.GenericListFormatter.getFormattedOutput(
-                fileHandler.getFileChunks(), "|", true));
+//        appendLn(sb, "Home path: " + homePath);
+
+        sb.append(fileHandler);
+
         return sb.toString();
     }
 
     /**
-     * Print out the details of the ChunkServer in a formatted way
+     * Print out the details of the ChunkHolder in a formatted way
      */
     private String showConfig() {
         return String.format("ServerName: '%s', " +
-                                     "Path: '%s'%n" +
-                                     "Server%s%n",
+                        "Path: '%s'%n" +
+                        "Server%s%n",
                 serverName, homePath, server);
     }
 
     @Override
-    protected void cacheInfo() {}
+    protected void cacheInfo() {
+        // TODO: Store current state in a configurable location, could just mean wrapping access methods with
+        //  file-accesses
+    }
 
     @Override
-    protected void updateFromCache() {}
+    protected void updateFromCache() {
+        // TODO: Pull from saved state, this will need to check the saved config against what is given at runtime/compile
+    }
 
-    private void registrationStatus(Event e, Socket socket) {
+    private void registrationStatus(Event e, Socket ignoredSocket) {
         ControllerReportsRegistrationStatus response = (ControllerReportsRegistrationStatus) e;
 
         switch (response.getStatus()) {
@@ -184,19 +170,13 @@ public class ChunkServer extends Node implements HeartBeat {
                 break;
             default:
                 logger.error("ERROR: Incorrect message response type received");
+                break;
         }
 
     }
 
-    private void deregistration(Event e, Socket socket) {
-        ControllerRequestsDeregistration request = (ControllerRequestsDeregistration) e;
-
-        //TODO: look at ControllerRequestsDeregistration for future feature info
-
-        //logger.debug("Received Deregistration request");
-
-        //respond
-        Event event = new ChunkServerReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
+    private void deRegistration(Event ignoredE, Socket socket) {
+        Event event = new ChunkHolderReportsDeregistrationStatus(RESPONSE_SUCCESS, getServerHost(),
                 getServerPort(), serverName);
 
         sendMessage(socket, event);
@@ -208,14 +188,13 @@ public class ChunkServer extends Node implements HeartBeat {
     }
 
     /**
-     * Simply responding with the current status of the ChunkServer. For the most part the status shouldn't be
+     * Simply responding with the current status of the ChunkHolder. For the most part the status shouldn't be
      * needed until more features are implemented. In the future error-checking/corrupted file chunks could be a status,
-     * but at the moment simply sending a response to the Controller means the ChunkServer is still alive
+     * but at the moment simply sending a response to the Controller means the ChunkHolder is still alive
      *
-     * @param socket
      */
-    private void respondWithStatus(Event e, Socket socket) {
-        Event event = new ChunkServerReportsHeartbeat(RESPONSE_SUCCESS);
+    private void respondWithStatus(Event ignoredE, Socket socket) {
+        Event event = new ChunkHolderReportsHeartbeat(RESPONSE_SUCCESS);
         sendMessage(socket, event);
     }
 
@@ -228,48 +207,47 @@ public class ChunkServer extends Node implements HeartBeat {
     private void sendFileChunk(Event e, Socket socket) {
         ClientRequestsFileChunk request = (ClientRequestsFileChunk) e;
 
-        // byte[] fileData = fileHandler.getFileData(request.getFile());
-        //Event event = new ChunkServerSendsFileChunk(fileData);
+        byte[] fileData = fileHandler.getFileData(request.getFile());
+        Event event = new ChunkHolderSendsFileChunk(fileData);
 
 
-        //sendMessage(socket, event);
+        sendMessage(socket, event);
     }
 
     /**
-     * Handles the adding of a file, called either from a Client node, or from another ChunkServer
+     * Handles the adding of a file, called either from a Client node, or from another ChunkHolder
      * requesting a replication
      *
-     * @param e      Base event passed in, is actually NodeSendsFileChunk with respective request values
-     * @param socket The socket the event came in on
+     * @param e             Base event passed in, is actually NodeSendsFileChunk with respective request values
+     * @param ignoredSocket The socket the event came in on
      */
-    private void fileAdd(Event e, Socket socket) {
+    private void fileAdd(Event e, Socket ignoredSocket) {
         NodeSendsFileChunk request = (NodeSendsFileChunk) e;
 
         logger.debug(String.format("Received new chunk: %s, %d bytes", request.getFileName(),
                 request.getChunkData().length));
 
-        String fileName = request.getFileName() + request.getChunkNumber();
 
         if (!request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
             logger.error("Data does match origin. Requesting a new chunk.");
-            //TODO: possibly exit method early and send a request back to the node for another file
-            // in which case this will be started again
+            // TODO: possibly exit method early and send a request back to the node for another file
+            //  in which case this will be started again
         }
 
+        // TODO: Compare the hash passed through to the one generated locally off of the chunk
 
-        //store the file in the local directory for the ChunkServer
-        fileHandler.storeFileChunk(fileName, request.getChunkData(), request.getHash());
-
-        //Store the update in
+        //store the file in the local directory for the ChunkHolder
+        ChunkMetadata cdmd = new ChunkDataMetadata(request.getChunkNumber(), request.getHash(), request.getChunkData());
+        fileHandler.storeFileChunk(request.getFileName(), cdmd, request.getChunkData(), true);
 
         //update the contact details
-        ArrayList<URL> serversToContact = request.getServersToContact();
+        ArrayList<InetSocketAddress> serversToContact = request.getServersToContact();
         if (serversToContact.isEmpty()) {
-            logger.debug("Completed Replication of file chunk: " + fileName);
+            logger.debug("Completed Replication of file chunk: " + request.getFileName() + request.getChunkNumber());
             return;
         }
 
-        URL address = serversToContact.remove(0);
+        InetSocketAddress address = serversToContact.remove(0);
 
         // Check if there is already a connection
         SocketStream socketStream = connectionHandler.getSocketStream(address);
@@ -284,8 +262,7 @@ public class ChunkServer extends Node implements HeartBeat {
 
     @Override
     public void onHeartBeat(int type) {
-        //send out a current summary of changes to the ChunkServer since the last heartbeat
-
+        //send out a current summary of changes to the ChunkHolder since the last heartbeat
         Event event = type == HEARTBEAT_MAJOR ? constructMajorHeartbeat() : constructMinorHeartbeat();
 
         // get controller socket, because that is always the initial connection used, it's
@@ -295,12 +272,44 @@ public class ChunkServer extends Node implements HeartBeat {
 
     private Event constructMajorHeartbeat() {
 
-
+        // TODO: Functionality that will build use the
         return null;
 
     }
 
     private Event constructMinorHeartbeat() {
         return null;
+    }
+
+    /**
+     * Used by the Holder
+     */
+    protected static class ChunkDataMetadata extends ChunkMetadata {
+        private final ArrayList<SliceMetadata> sliceList;
+
+        public ChunkDataMetadata(int chunkNumber,
+                                 String chunkHash,
+                                 byte[] chunkData) {
+            super(chunkNumber, chunkData.length, chunkHash);
+            this.sliceList = SliceMetadata.generateSliceMetadata(chunkData);
+
+        }
+
+        protected static class SliceMetadata {
+            public final int sliceNumber;
+            public final int sliceSize;
+            public final String checksum;
+
+            public SliceMetadata(int sliceNumber, int sliceSize, String checksum) {
+                this.sliceNumber = sliceNumber;
+                this.sliceSize = sliceSize;
+                this.checksum = checksum;
+            }
+
+            private static ArrayList<SliceMetadata> generateSliceMetadata(byte[] chunkData) {
+                //TODO: Refactor file chunking logic to generalize, as slicing is exactly the same methodology
+                return null;
+            }
+        }
     }
 }
