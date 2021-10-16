@@ -1,6 +1,7 @@
 package filesystem.node;
 
 import filesystem.node.metadata.ChunkMetadata;
+import filesystem.node.metadata.MetadataCache;
 import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
@@ -21,7 +22,7 @@ import java.util.Map;
 
 import static filesystem.protocol.Protocol.*;
 
-public class ChunkHolder extends Node implements HeartBeat {
+public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     private static final Logger logger = LogManager.getLogger(ChunkHolder.class);
 
     //needed for console commands, not the most DRY
@@ -147,17 +148,6 @@ public class ChunkHolder extends Node implements HeartBeat {
                 serverName, homePath, server);
     }
 
-    @Override
-    protected void cacheInfo() {
-        // TODO: Store current state in a configurable location, could just mean wrapping access methods with
-        //  file-accesses
-    }
-
-    @Override
-    protected void updateFromCache() {
-        // TODO: Pull from saved state, this will need to check the saved config against what is given at runtime/compile
-    }
-
     private void registrationStatus(Event e, Socket ignoredSocket) {
         ControllerReportsRegistrationStatus response = (ControllerReportsRegistrationStatus) e;
 
@@ -279,6 +269,17 @@ public class ChunkHolder extends Node implements HeartBeat {
 
     private Event constructMinorHeartbeat() {
         return null;
+    }
+
+    @Override
+    public void cacheInfo(String path) {
+        // TODO: Store current state in a configurable location, could just mean wrapping access methods with
+        //  file-accesses
+    }
+
+    @Override
+    public void updateFromCache(String path) {
+        // TODO: Pull from saved state, this will need to check the saved config against what is given at runtime/compile
     }
 
     /**
