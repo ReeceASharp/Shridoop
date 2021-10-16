@@ -104,16 +104,6 @@ public class Client extends Node {
         return commandList;
     }
 
-    @Override
-    protected void cacheInfo() {
-        // No info to cache
-    }
-
-    @Override
-    protected void updateFromCache() {
-        // No info to fetch
-    }
-
     private String addFile(String userInput) {
         String[] tokens = userInput.split(" ");
 
@@ -225,5 +215,4 @@ public class Client extends Node {
     private String fetchFilePath(String cloudPath) {
         return intermediateFilePaths.get(cloudPath);
     }
-
 }

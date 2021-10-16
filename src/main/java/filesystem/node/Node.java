@@ -142,17 +142,6 @@ public abstract class Node {
      */
     public abstract Map<String, Command> getCommandList();
 
-    /**
-     * Caches the state for node to a configurable location. Works with updateFromCache().This allows
-     * the cluster to be brought up and down successfully.
-     */
-    protected abstract void cacheInfo();
-
-    /**
-     * Uses the cached information from cacheInfo() to set the state of the node.
-     */
-    protected abstract void updateFromCache();
-
 
     protected interface EventAction {
         void runAction(Event e, Socket socket);

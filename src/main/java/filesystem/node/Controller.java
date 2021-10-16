@@ -2,6 +2,7 @@ package filesystem.node;
 
 import filesystem.node.metadata.ChunkMetadata;
 import filesystem.node.metadata.FileMetadata;
+import filesystem.node.metadata.MetadataCache;
 import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
@@ -23,7 +24,7 @@ import static filesystem.protocol.Protocol.*;
 import static filesystem.util.Utils.appendLn;
 
 
-public class Controller extends Node implements HeartBeat {
+public class Controller extends Node implements HeartBeat, MetadataCache {
     private static final Logger logger = LogManager.getLogger(Controller.class);
     private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
     private final int port;
@@ -190,19 +191,6 @@ public class Controller extends Node implements HeartBeat {
             return fmd.toString();
 
         return "Invalid file.";
-    }
-
-    @Override
-    protected void cacheInfo() {
-        // TODO: Determine if anything is being stored, this may not be needed, as the nodes can each send out a major
-        //  beat, which the Controller can update its system with. There might not be anything that needs to be saved
-
-    }
-
-    @Override
-    protected void updateFromCache() {
-        // TODO: If something is saved, run this on startup to correctly set state
-
     }
 
     private String stopChunkHolders() {
@@ -404,6 +392,17 @@ public class Controller extends Node implements HeartBeat {
             return new ContactList(locationChunk.chunkNumber, locationChunk.serversHoldingChunk);
         }).collect(Collectors.toList()
         );
+    }
+
+    @Override
+    public void cacheInfo(String path) {
+        // TODO: Dump the ClusterInformation
+
+    }
+
+    @Override
+    public void updateFromCache(String path) {
+        // Attempt to pull in the ClusterInformation, possibly use some sort of
     }
 
     /**
