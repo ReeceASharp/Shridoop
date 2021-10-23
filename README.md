@@ -1,5 +1,7 @@
 # Shridoop
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/ed4c871268174527bbe42b959be289ce)](https://app.codacy.com/gh/ReeceASharp/Shridoop?utm_source=github.com&utm_medium=referral&utm_content=ReeceASharp/Shridoop&utm_campaign=Badge_Grade_Settings)
+
 
 ### General Information
 <p>
