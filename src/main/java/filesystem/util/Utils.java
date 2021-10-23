@@ -23,7 +23,7 @@ public final class Utils {
      *
      * @return String containing the absolute path of the two combined paths
      */
-    public static Path resolveFileName(Path mainPath, Path localPath) {
+    public static Path resolveFilePath(Path mainPath, Path localPath) {
         Path resolvedPath = mainPath.resolve(localPath);
         return resolvedPath.toAbsolutePath();
     }
@@ -35,7 +35,7 @@ public final class Utils {
      * @param localPath
      * @return
      */
-    public Path resolveFileName(Path mainPath, String localPath) {
+    public Path resolveFilePath(Path mainPath, String localPath) {
         Path resolvedPath = mainPath.resolve(localPath);
         return resolvedPath.toAbsolutePath();
     }

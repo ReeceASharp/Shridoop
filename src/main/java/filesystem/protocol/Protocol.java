@@ -11,8 +11,6 @@ package filesystem.protocol;
  */
 public final class Protocol {
 
-    private Protocol() {}
-
     //
     public static final int RESPONSE_SUCCESS = 10;
 
@@ -68,4 +66,5 @@ public final class Protocol {
     // ChunkHolder -> Client
     public static final int CHUNK_SERVER_SENDS_FILE_CHUNK = 161;
 
+    private Protocol() {}
 }

@@ -1,6 +1,7 @@
 package filesystem.protocol;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Keeps track of all intermediate changes inside a Chunk Server using records
@@ -23,7 +24,7 @@ public class RecordKeeper {
         records.clear();
     }
 
-    public ArrayList<Record> getRecords(boolean clear) {
+    public List<Record> getRecords(boolean clear) {
         // Returning a deep-copy when the list isn't being
         if (clear) {
             ArrayList<Record> recordCache = new ArrayList<>(records);

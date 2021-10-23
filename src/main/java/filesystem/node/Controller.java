@@ -82,7 +82,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
         this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
         this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::receiveMajorBeat);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMinorbeat);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMinorBeat);
         this.eventActions.put(CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT, this::receiveHealthStatus);
         // Client -> Controller
         this.eventActions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
@@ -251,8 +251,8 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         activeChunkHolders.countDown();
     }
 
-    private void receiveMajorBeat(Event unusedE, Socket unusedSocket) {
-//        ChunkHolderSendsMajorHeartbeat heartbeat = (ChunkHolderSendsMajorHeartbeat) e;
+    private void receiveMajorBeat(Event e, Socket unusedSocket) {
+        ChunkHolderSendsMajorHeartbeat heartbeat = (ChunkHolderSendsMajorHeartbeat) e;
 
         // TODO: Verify current metadata with info from the heartbeat. This information will then
         //  allow a scheduled task to run and check that the system is healthy (replication rules are followed, etc)
@@ -260,7 +260,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
     }
 
-    private void receiveMinorbeat(Event e, Socket socket) {
+    private void receiveMinorBeat(Event e, Socket socket) {
         ChunkHolderSendsMinorHeartbeat heartbeat = (ChunkHolderSendsMinorHeartbeat) e;
 
         // TODO: Update current metadata with info from heartbeat.
@@ -329,8 +329,8 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         if (fmd != null) {
             // For each chunk location, send out a request to delete it
             for (ChunkMetadata chunkMetadata : fmd.chunkList) {
-                ChunkLocationMetadata clm = (ChunkLocationMetadata) chunkMetadata;
-                for (InetSocketAddress url : clm.serversHoldingChunk) {
+                ChunkLocationMetadata locationChunk = (ChunkLocationMetadata) chunkMetadata;
+                for (InetSocketAddress url : locationChunk.serversHoldingChunk) {
                     Socket chunkSocket = clusterHandler.getServer(url).socket;
                     ControllerRequestsChunkDelete request = new ControllerRequestsChunkDelete(
                             fileToDelete, chunkMetadata.chunkNumber);
@@ -413,11 +413,12 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     public static class ChunkLocationMetadata extends ChunkMetadata {
         public ArrayList<InetSocketAddress> serversHoldingChunk;
 
-        public ChunkLocationMetadata(int chunkNumber,
+        public ChunkLocationMetadata(String fileName,
+                                     int chunkNumber,
                                      int chunkSize,
                                      String chunkHash,
                                      ArrayList<InetSocketAddress> serversHoldingChunk) {
-            super(chunkNumber, chunkSize, chunkHash);
+            super(fileName, chunkNumber, chunkSize, chunkHash);
             this.serversHoldingChunk = serversHoldingChunk;
 
         }

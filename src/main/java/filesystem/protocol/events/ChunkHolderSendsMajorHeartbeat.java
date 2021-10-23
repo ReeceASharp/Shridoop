@@ -1,5 +1,6 @@
 package filesystem.protocol.events;
 
+import filesystem.node.metadata.ChunkMetadata;
 import filesystem.protocol.Event;
 
 import java.util.ArrayList;
@@ -13,9 +14,9 @@ import static filesystem.protocol.Protocol.CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT;
 public class ChunkHolderSendsMajorHeartbeat implements Event {
     private static final int type = CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT;
 
-    private final ArrayList<String> currentChunks;
+    private final ArrayList<ChunkMetadata> currentChunks;
 
-    public ChunkHolderSendsMajorHeartbeat(ArrayList<String> currentChunks) {
+    public ChunkHolderSendsMajorHeartbeat(ArrayList<ChunkMetadata> currentChunks) {
         this.currentChunks = currentChunks;
     }
 
