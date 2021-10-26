@@ -5,9 +5,9 @@ import filesystem.protocol.Record;
 public class ChunkAdd implements Record {
     public static final int type = CHUNK_ADD;
 
-    private final String filePath;
-    private final int chunkNumber;
-    private final String hash;
+    public final String filePath;
+    public final int chunkNumber;
+    public final String hash;
 
     public ChunkAdd(String filePath, int chunkNumber, String hash) {
         this.filePath = filePath;
@@ -19,4 +19,6 @@ public class ChunkAdd implements Record {
     public int getType() {
         return type;
     }
+
+
 }

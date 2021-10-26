@@ -27,23 +27,18 @@ public abstract class Node {
 
     public static final int CHUNK_SIZE = Integer.parseInt(Properties.get("CHUNK_SIZE_BYTES"));
 
-    public Node() {
-        this.connectionHandler = new ConnectionHandler();
-        this.eventActions = new HashMap<>();
-
-        this.resolveEventMap();
-    }
-
-
     // Cluster connections
     public final ConnectionHandler connectionHandler;
     protected TCPServer server;
     protected ConsoleParser console;
     protected final Map<Integer, EventAction> eventActions;
 
-    protected abstract void resolveEventMap();
+    public Node() {
+        this.connectionHandler = new ConnectionHandler();
+        this.eventActions = new HashMap<>();
 
-
+        this.resolveEventMap();
+    }
 
 
     protected SocketStream connect(InetSocketAddress address) {
@@ -147,6 +142,8 @@ public abstract class Node {
         void runAction(Event e, Socket socket);
     }
 
+
+    protected abstract void resolveEventMap();
 
 
 }

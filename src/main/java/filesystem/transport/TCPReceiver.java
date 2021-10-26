@@ -2,6 +2,7 @@ package filesystem.transport;
 
 import filesystem.node.Node;
 import filesystem.protocol.Event;
+import filesystem.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -52,7 +53,7 @@ public class TCPReceiver implements Runnable {
                 logger.error("Received Invalid Event. Ignoring.");
             }
 
-            //if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
+            if (Boolean.getBoolean(Properties.get("MESSAGE_DEBUG")))
                 logger.debug("Received Message: " + event);
             node.onEvent(event, socketStream.socket);
         }

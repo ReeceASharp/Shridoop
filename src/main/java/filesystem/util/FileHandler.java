@@ -26,6 +26,7 @@ public class FileHandler {
     //list of known chunks stored by the ChunkHolder
     private final Map<String, ArrayList<ChunkMetadata>> fileChunks;
     private final RecordKeeper recordKeeper;
+    private int totalChunks;
 
     //path of where the FileHandler starts its storage system
     protected final Path homePath;
@@ -34,6 +35,7 @@ public class FileHandler {
         this.homePath = Paths.get(homePath);
         this.recordKeeper = new RecordKeeper();
         this.fileChunks = new HashMap<>();
+        this.totalChunks = 0;
     }
 
 
@@ -50,16 +52,19 @@ public class FileHandler {
     }
 
     public synchronized void storeFileChunk(ChunkMetadata cmd, byte[] chunkData, boolean writeToDisk) {
-        //use full-path to store data
-        Path fullPath = resolveFilePath(homePath, Paths.get(cmd.fileName));
-
-        if (writeToDisk)
+        if (writeToDisk) {
+            //use full-path to store data
+            String storageName = String.format("%s_chunk%d", cmd.fileName, cmd.chunkNumber);
+            Path fullPath = resolveFilePath(homePath, Paths.get(storageName));
             writeDataToDisk(fullPath, chunkData);
+        }
 
         if (!fileChunks.containsKey(cmd.fileName))
             fileChunks.put(cmd.fileName, new ArrayList<>());
 
         fileChunks.get(cmd.fileName).add(cmd);
+
+        totalChunks++;
 
         //Store the update in records to be sent to the Controller
         recordKeeper.addRecord(new ChunkAdd(cmd.fileName, cmd.chunkNumber, cmd.chunkHash));
@@ -100,6 +105,10 @@ public class FileHandler {
 
     public List<ChunkMetadata> packageMetadata() {
         return fileChunks.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+    }
+
+    public int getTotalChunks() {
+        return totalChunks;
     }
 
 

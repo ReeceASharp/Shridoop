@@ -4,7 +4,9 @@ import filesystem.node.metadata.ChunkMetadata;
 import filesystem.node.metadata.FileMetadata;
 import filesystem.node.metadata.MetadataCache;
 import filesystem.protocol.Event;
+import filesystem.protocol.Record;
 import filesystem.protocol.events.*;
+import filesystem.protocol.records.ChunkAdd;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
 import filesystem.util.Properties;
@@ -251,8 +253,20 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         activeChunkHolders.countDown();
     }
 
-    private void receiveMajorBeat(Event e, Socket unusedSocket) {
+    private void receiveMajorBeat(Event e, Socket socket) {
         ChunkHolderSendsMajorHeartbeat heartbeat = (ChunkHolderSendsMajorHeartbeat) e;
+        InetSocketAddress holderAddress = Utils.socketToInetSocketAddress(socket);
+
+        // Could be improved, could use maps
+        for (ChunkMetadata cmd : heartbeat.getCurrentChunks()) {
+            ChunkLocationMetadata clmd = (ChunkLocationMetadata) clusterHandler.getFile(cmd.fileName)
+                                                                         .getChunkMetadata(cmd.chunkNumber);
+
+            if (!clmd.serversHoldingChunk.contains(clmd)) {
+                clmd.serversHoldingChunk.add(holderAddress);
+            }
+
+        }
 
         // TODO: Verify current metadata with info from the heartbeat. This information will then
         //  allow a scheduled task to run and check that the system is healthy (replication rules are followed, etc)
@@ -262,6 +276,17 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
     private void receiveMinorBeat(Event e, Socket socket) {
         ChunkHolderSendsMinorHeartbeat heartbeat = (ChunkHolderSendsMinorHeartbeat) e;
+        InetSocketAddress holderAddress = Utils.socketToInetSocketAddress(socket);
+
+        for (Record r :heartbeat.getRecentRecords()) {
+            ChunkAdd addRecord = (ChunkAdd) r;
+
+            // Add it to the list of servers known to have the file
+            ChunkLocationMetadata clmd = (ChunkLocationMetadata) clusterHandler.getFile(addRecord.filePath)
+                                                                         .getChunkMetadata(addRecord.chunkNumber);
+            clmd.serversHoldingChunk.add(holderAddress);
+
+        }
 
         // TODO: Update current metadata with info from heartbeat.
 
@@ -328,7 +353,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         FileMetadata fmd = clusterHandler.getFile(fileToDelete);
         if (fmd != null) {
             // For each chunk location, send out a request to delete it
-            for (ChunkMetadata chunkMetadata : fmd.chunkList) {
+            for (ChunkMetadata chunkMetadata : fmd.chunkList.values()) {
                 ChunkLocationMetadata locationChunk = (ChunkLocationMetadata) chunkMetadata;
                 for (InetSocketAddress url : locationChunk.serversHoldingChunk) {
                     Socket chunkSocket = clusterHandler.getServer(url).socket;
@@ -387,7 +412,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     }
 
     public ArrayList<ContactList> getChunkLocations(String filePath) {
-        return (ArrayList<ContactList>) clusterHandler.getFile(filePath).chunkList.stream().map(chunk -> {
+        return (ArrayList<ContactList>) clusterHandler.getFile(filePath).chunkList.values().stream().map(chunk -> {
             ChunkLocationMetadata locationChunk = (ChunkLocationMetadata) chunk;
             return new ContactList(locationChunk.chunkNumber, locationChunk.serversHoldingChunk);
         }).collect(Collectors.toList()
