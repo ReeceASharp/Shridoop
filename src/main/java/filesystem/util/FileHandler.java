@@ -1,28 +1,32 @@
 package filesystem.util;
 
 import filesystem.node.metadata.ChunkMetadata;
+import filesystem.protocol.Record;
 import filesystem.protocol.RecordKeeper;
 import filesystem.protocol.records.ChunkAdd;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import static filesystem.util.Utils.appendLn;
-import static filesystem.util.Utils.resolveFileName;
+import static filesystem.util.Utils.resolveFilePath;
 
 /**
  * Goal of the fileHandler is to keep track of the files, used by the ChunkHolder
  */
 public class FileHandler {
-    //list of known chunks stored by the ChunkHolder
+    //list of known chunks stored by the FileHandler
     private final Map<String, ArrayList<ChunkMetadata>> fileChunks;
     private final RecordKeeper recordKeeper;
+    private int totalChunks;
 
     //path of where the FileHandler starts its storage system
     protected final Path homePath;
@@ -31,12 +35,13 @@ public class FileHandler {
         this.homePath = Paths.get(homePath);
         this.recordKeeper = new RecordKeeper();
         this.fileChunks = new HashMap<>();
+        this.totalChunks = 0;
     }
 
 
     public synchronized byte[] getFileData(String file) {
 
-        Path absolutePath = resolveFileName(homePath, Paths.get(file));
+        Path absolutePath = resolveFilePath(homePath, Paths.get(file));
         byte[] fileData = null;
         try {
             fileData = Files.readAllBytes(absolutePath);
@@ -46,20 +51,23 @@ public class FileHandler {
         return fileData;
     }
 
-    public synchronized void storeFileChunk(String path, ChunkMetadata cmd, byte[] chunkData,boolean writeToDisk) {
-        //use full-path to store data
-        Path fullPath = resolveFileName(homePath, Paths.get(path));
-
-        if (writeToDisk)
+    public synchronized void storeFileChunk(ChunkMetadata cmd, byte[] chunkData, boolean writeToDisk) {
+        if (writeToDisk) {
+            //use full-path to store data
+            String storageName = String.format("%s_chunk%d", cmd.fileName, cmd.chunkNumber);
+            Path fullPath = resolveFilePath(homePath, Paths.get(storageName));
             writeDataToDisk(fullPath, chunkData);
-
-        if (!fileChunks.containsKey(path)) {
-            fileChunks.put(path, new ArrayList<>());
         }
-        fileChunks.get(path).add(cmd);
+
+        if (!fileChunks.containsKey(cmd.fileName))
+            fileChunks.put(cmd.fileName, new ArrayList<>());
+
+        fileChunks.get(cmd.fileName).add(cmd);
+
+        totalChunks++;
 
         //Store the update in records to be sent to the Controller
-        recordKeeper.addRecord(new ChunkAdd(path, cmd.chunkNumber, cmd.chunkHash));
+        recordKeeper.addRecord(new ChunkAdd(cmd.fileName, cmd.chunkNumber, cmd.chunkHash, cmd.chunkSize));
     }
 
     public synchronized void writeDataToDisk(Path fullPath, byte[] data) {
@@ -89,8 +97,27 @@ public class FileHandler {
                 showFieldNames = false;
         }
 
-        sb.append(Utils.GenericListFormatter.getFormattedOutput(recordKeeper.getRecords(false), "|", showFieldNames));
+        sb.append(Utils.GenericListFormatter.getFormattedOutput(recordKeeper.getRecords(false), "|", true));
 
         return sb.toString();
     }
+
+
+    /**
+     * Package up all of the metadata known by the FileHandler, and by extension the ChunkHolder
+     * @return
+     */
+    public List<ChunkMetadata> packageMetadata() {
+        return fileChunks.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+    }
+
+    public int getTotalChunks() {
+        return totalChunks;
+    }
+
+
+    public List<Record> getRecentRecords() {
+        return recordKeeper.getRecords(true);
+    }
+
 }

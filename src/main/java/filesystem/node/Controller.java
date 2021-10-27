@@ -4,12 +4,13 @@ import filesystem.node.metadata.ChunkMetadata;
 import filesystem.node.metadata.FileMetadata;
 import filesystem.node.metadata.MetadataCache;
 import filesystem.protocol.Event;
+import filesystem.protocol.Record;
 import filesystem.protocol.events.*;
+import filesystem.protocol.records.ChunkAdd;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
 import filesystem.util.Properties;
 import filesystem.util.*;
-import filesystem.util.taskscheduler.HeartBeatTask;
 import filesystem.util.taskscheduler.TaskScheduler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +30,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
     private final int port;
     private final ClusterMetadataHandler clusterHandler;
-//    private boolean isActive;
+    //    private boolean isActive;
     private TaskScheduler timer;
     private CountDownLatch activeChunkHolders;
 
@@ -64,7 +65,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         new Thread(this.server).start();
         new Thread(this.console).start();
 
-        this.timer.scheduleAndStart(new HeartBeatTask(this), "ChunkHolderHealthStatus", 5, 30);
+        //this.timer.scheduleAndStart(new HeartBeatTask(this), "ChunkHolderHealthStatus", 5, 30);
     }
 
     @Override
@@ -74,22 +75,6 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         for (ClusterMetadataHandler.HolderMetadata smd : clusterHandler.getServers()) {
             sendMessage(smd.socket, e);
         }
-    }
-
-    @Override
-    protected void resolveEventMap() {
-        // ChunkHolder -> Controller
-        this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
-        this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::receiveMajorBeat);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMinorbeat);
-        this.eventActions.put(CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT, this::receiveHealthStatus);
-        // Client -> Controller
-        this.eventActions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
-        this.eventActions.put(CLIENT_REQUESTS_FILE_DELETE, this::fileDelete);
-        this.eventActions.put(CLIENT_REQUESTS_FILE, this::fileGet);
-        this.eventActions.put(CLIENT_REQUESTS_FILE_LIST, this::fileList);
-        //this.eventActions.put(CLIENT_REQUESTS_CHUNK_SERVER_METADATA, this::chunkServerData);
     }
 
     @Override
@@ -133,91 +118,20 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         return commandMap;
     }
 
-    private String listClusterFiles() {
-        return Utils.GenericListFormatter.getFormattedOutput(
-                new ArrayList<>(clusterHandler.getFiles()), "|", true);
-    }
-
-    /**
-     * Send out a command to each server and start a chunkServer there. Currently, this is
-     * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
-     */
-    private String initialize() {
-        // TODO: Remove all init functionality. the tmux script is too cool not to use
-
-//        if (isActive)
-//            return "Already active.";
-//        isActive = true;
-//        return "System is activated.";
-
-        /*
-        // Open a pseudo Unix environment to run a bash script that will then open more terminals
-        // running the servers, this hard-codes it to a windows environment at the moment
-        try {
-            ProcessBuilder pb = new ProcessBuilder("C:\\Program Files\\Git\\bin\\bash.exe",
-                    "-c", String.format("bash ./start_chunks.sh %s %d", hostname(), port));
-            Process p = pb.start();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-         */
-        return "Init Disabled, System is dynamic.";
-    }
-
-    /**
-     * Returns all information currently loaded in regarding the configuration of the cluster
-     */
-    public String showConfig() {
-        StringBuilder sb = new StringBuilder();
-        ArrayList<ClusterMetadataHandler.HolderMetadata> smd = clusterHandler.getServers();
-
-        appendLn(sb, String.format("Nodes: %d", smd.size()));
-        sb.append(Utils.GenericListFormatter.getFormattedOutput(
-                new ArrayList<>(smd), "|", true));
-        return sb.toString();
-    }
-
-    private String fileInfo(String userInput) {
-        String[] tokens = userInput.split(" ");
-
-        FileMetadata fmd = null;
-
-        try {
-            fmd = this.clusterHandler.getFile(tokens[1]);
-        } catch (ArrayIndexOutOfBoundsException ignored){ }
-
-        if (fmd != null)
-            return fmd.toString();
-
-        return "Invalid file.";
-    }
-
-    private String stopChunkHolders() {
-//        if (!isActive) {
-//            return "Cluster isn't currently active";
-//        }
-//        isActive = false;
-
-        //Request that each server shutdown
-        String response;
-        try {
-            synchronized (clusterHandler.getServers()) {
-                activeChunkHolders = new CountDownLatch(clusterHandler.getServers().size());
-                logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkHolders.getCount()));
-
-                Event event = new ControllerRequestsDeregistration();
-                for (ClusterMetadataHandler.HolderMetadata smd : clusterHandler.getServers())
-                    sendMessage(smd.socket, event);
-            }
-            activeChunkHolders.await();
-            response = "All servers have responded, exiting";
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            response = "Error. Server shutdown Failed.";
-        }
-
-        return response;
+    @Override
+    protected void resolveEventMap() {
+        // ChunkHolder -> Controller
+        this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
+        this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMajorBeat);
+        this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::receiveMinorBeat);
+        this.eventActions.put(CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT, this::receiveHealthStatus);
+        // Client -> Controller
+        this.eventActions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
+        this.eventActions.put(CLIENT_REQUESTS_FILE_DELETE, this::fileDelete);
+        this.eventActions.put(CLIENT_REQUESTS_FILE, this::fileGet);
+        this.eventActions.put(CLIENT_REQUESTS_FILE_LIST, this::fileList);
+        //this.eventActions.put(CLIENT_REQUESTS_CHUNK_SERVER_METADATA, this::chunkServerData);
     }
 
     private void chunkServerRegistration(Event e, Socket ignoredSocket) {
@@ -251,8 +165,19 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         activeChunkHolders.countDown();
     }
 
-    private void receiveMajorBeat(Event unusedE, Socket unusedSocket) {
-//        ChunkHolderSendsMajorHeartbeat heartbeat = (ChunkHolderSendsMajorHeartbeat) e;
+    private void receiveMajorBeat(Event e, Socket socket) {
+        ChunkHolderSendsMajorHeartbeat heartbeat = (ChunkHolderSendsMajorHeartbeat) e;
+        InetSocketAddress holderAddress = Utils.socketToInetSocketAddress(socket);
+        System.out.println(heartbeat);
+        for (ChunkMetadata cmd : heartbeat.getCurrentChunks()) {
+            ChunkLocationMetadata clmd = (ChunkLocationMetadata) clusterHandler.getFile(cmd.fileName)
+                                                                         .getChunkMetadata(cmd.chunkNumber);
+
+            if (!clmd.serversHoldingChunk.contains(holderAddress)) {
+                clmd.serversHoldingChunk.add(holderAddress);
+            }
+
+        }
 
         // TODO: Verify current metadata with info from the heartbeat. This information will then
         //  allow a scheduled task to run and check that the system is healthy (replication rules are followed, etc)
@@ -260,8 +185,27 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
     }
 
-    private void receiveMinorbeat(Event e, Socket socket) {
+    private void receiveMinorBeat(Event e, Socket socket) {
         ChunkHolderSendsMinorHeartbeat heartbeat = (ChunkHolderSendsMinorHeartbeat) e;
+        InetSocketAddress holderAddress = Utils.socketToInetSocketAddress(socket);
+        System.out.println(heartbeat);
+
+        for (Record r : heartbeat.getRecentRecords()) {
+            ChunkAdd addRecord = (ChunkAdd) r;
+            FileMetadata fmd = clusterHandler.getFile(addRecord.filePath);
+
+            // Add it to the list of servers known to have the file
+            ChunkLocationMetadata clmd = (ChunkLocationMetadata) fmd.getChunkMetadata(addRecord.chunkNumber);
+
+            if (clmd == null) {
+                clmd = new ChunkLocationMetadata(
+                        addRecord.filePath, addRecord.chunkNumber, addRecord.chunkSize, addRecord.hash, new ArrayList<>());
+                fmd.addChunkMetadata(addRecord.chunkNumber, clmd);
+            }
+
+            clmd.serversHoldingChunk.add(holderAddress);
+
+        }
 
         // TODO: Update current metadata with info from heartbeat.
 
@@ -328,9 +272,9 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         FileMetadata fmd = clusterHandler.getFile(fileToDelete);
         if (fmd != null) {
             // For each chunk location, send out a request to delete it
-            for (ChunkMetadata chunkMetadata : fmd.chunkList) {
-                ChunkLocationMetadata clm = (ChunkLocationMetadata) chunkMetadata;
-                for (InetSocketAddress url : clm.serversHoldingChunk) {
+            for (ChunkMetadata chunkMetadata : fmd.chunkList.values()) {
+                ChunkLocationMetadata locationChunk = (ChunkLocationMetadata) chunkMetadata;
+                for (InetSocketAddress url : locationChunk.serversHoldingChunk) {
                     Socket chunkSocket = clusterHandler.getServer(url).socket;
                     ControllerRequestsChunkDelete request = new ControllerRequestsChunkDelete(
                             fileToDelete, chunkMetadata.chunkNumber);
@@ -387,11 +331,110 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     }
 
     public ArrayList<ContactList> getChunkLocations(String filePath) {
-        return (ArrayList<ContactList>) clusterHandler.getFile(filePath).chunkList.stream().map(chunk -> {
+        return (ArrayList<ContactList>) clusterHandler.getFile(filePath).chunkList.values().stream().map(chunk -> {
             ChunkLocationMetadata locationChunk = (ChunkLocationMetadata) chunk;
             return new ContactList(locationChunk.chunkNumber, locationChunk.serversHoldingChunk);
         }).collect(Collectors.toList()
         );
+    }
+
+    private String listClusterFiles() {
+        StringBuffer sb = new StringBuffer();
+
+        for (FileMetadata fmd : clusterHandler.getFiles()) {
+            sb.append(String.format("FileName: %s, FileSize: %d%n", fmd.fileName, fmd.fileSize));
+            List<ChunkMetadata> chunks = new ArrayList<>(fmd.chunkList.values());
+            sb.append(Utils.GenericListFormatter.getFormattedOutput(chunks
+                    , "|", true));
+        }
+
+        return sb.toString();
+
+        //return Utils.GenericListFormatter.getFormattedOutput(
+        //        new ArrayList<>(clusterHandler.getFiles()), "|", true);
+    }
+
+    /**
+     * Send out a command to each server and start a chunkServer there. Currently, this is
+     * all written to work locally, but simulates a cluster through sockets and (in the future) different filepaths
+     */
+    private String initialize() {
+        // TODO: Remove all init functionality. the tmux script is too cool not to use
+
+//        if (isActive)
+//            return "Already active.";
+//        isActive = true;
+//        return "System is activated.";
+
+        /*
+        // Open a pseudo Unix environment to run a bash script that will then open more terminals
+        // running the servers, this hard-codes it to a windows environment at the moment
+        try {
+            ProcessBuilder pb = new ProcessBuilder("C:\\Program Files\\Git\\bin\\bash.exe",
+                    "-c", String.format("bash ./start_chunks.sh %s %d", hostname(), port));
+            Process p = pb.start();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+         */
+        return "Init Disabled, System is dynamic.";
+    }
+
+    /**
+     * Returns all information currently loaded in regarding the configuration of the cluster
+     */
+    public String showConfig() {
+        StringBuilder sb = new StringBuilder();
+        ArrayList<ClusterMetadataHandler.HolderMetadata> smd = clusterHandler.getServers();
+
+        appendLn(sb, String.format("Nodes: %d", smd.size()));
+        sb.append(Utils.GenericListFormatter.getFormattedOutput(
+                new ArrayList<>(smd), "|", true));
+        return sb.toString();
+    }
+
+    private String fileInfo(String userInput) {
+        String[] tokens = userInput.split(" ");
+
+        FileMetadata fmd = null;
+
+        try {
+            fmd = this.clusterHandler.getFile(tokens[1]);
+        } catch (ArrayIndexOutOfBoundsException ignored) {
+        }
+
+        if (fmd != null)
+            return fmd.toString();
+
+        return "Invalid file.";
+    }
+
+    private String stopChunkHolders() {
+//        if (!isActive) {
+//            return "Cluster isn't currently active";
+//        }
+//        isActive = false;
+
+        //Request that each server shutdown
+        String response;
+        try {
+            synchronized (clusterHandler.getServers()) {
+                activeChunkHolders = new CountDownLatch(clusterHandler.getServers().size());
+                logger.info(String.format("Sending shutdown request to %d nodes.", activeChunkHolders.getCount()));
+
+                Event event = new ControllerRequestsDeregistration();
+                for (ClusterMetadataHandler.HolderMetadata smd : clusterHandler.getServers())
+                    sendMessage(smd.socket, event);
+            }
+            activeChunkHolders.await();
+            response = "All servers have responded, exiting";
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            response = "Error. Server shutdown Failed.";
+        }
+
+        return response;
     }
 
     @Override
@@ -405,6 +448,8 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         // Attempt to pull in the ClusterInformation, possibly use some sort of
     }
 
+
+
     /**
      * Metadata for each chunk, contains the chunkNumber of the associated file,
      * and a list of ID's that when used with the ServerHandler, can get relevant details
@@ -413,11 +458,12 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     public static class ChunkLocationMetadata extends ChunkMetadata {
         public ArrayList<InetSocketAddress> serversHoldingChunk;
 
-        public ChunkLocationMetadata(int chunkNumber,
+        public ChunkLocationMetadata(String fileName,
+                                     int chunkNumber,
                                      int chunkSize,
                                      String chunkHash,
                                      ArrayList<InetSocketAddress> serversHoldingChunk) {
-            super(chunkNumber, chunkSize, chunkHash);
+            super(fileName, chunkNumber, chunkSize, chunkHash);
             this.serversHoldingChunk = serversHoldingChunk;
 
         }

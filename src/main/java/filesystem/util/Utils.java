@@ -3,6 +3,8 @@ package filesystem.util;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
@@ -11,6 +13,10 @@ import java.util.List;
 public final class Utils {
     public static void appendLn(StringBuilder sb, String toAppend) {
         sb.append(toAppend).append(System.getProperty("line.separator"));
+    }
+
+    public static InetSocketAddress socketToInetSocketAddress(Socket s) {
+        return new InetSocketAddress(s.getInetAddress(), s.getPort());
     }
 
     public static String timestampNowString() {
@@ -23,19 +29,7 @@ public final class Utils {
      *
      * @return String containing the absolute path of the two combined paths
      */
-    public static Path resolveFileName(Path mainPath, Path localPath) {
-        Path resolvedPath = mainPath.resolve(localPath);
-        return resolvedPath.toAbsolutePath();
-    }
-
-    /**
-     * Resolves the passed local path of the file with the current home directory of this Handler, and gets the full
-     * pathname of requested file
-     *
-     * @param localPath
-     * @return
-     */
-    public Path resolveFileName(Path mainPath, String localPath) {
+    public static Path resolveFilePath(Path mainPath, Path localPath) {
         Path resolvedPath = mainPath.resolve(localPath);
         return resolvedPath.toAbsolutePath();
     }

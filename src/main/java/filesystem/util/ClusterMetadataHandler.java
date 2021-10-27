@@ -32,7 +32,7 @@ public class ClusterMetadataHandler {
     }
 
     public void addFile(String file, int totalChunks, long fileSize) {
-        currentFiles.put(file, new FileMetadata(file, totalChunks, fileSize));
+        currentFiles.put(file, new FileMetadata(file, fileSize));
     }
 
     public synchronized void addServer(String serverName, InetSocketAddress address, Socket socket) {
