@@ -7,6 +7,7 @@ import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
 import filesystem.util.*;
+import filesystem.util.taskscheduler.MajorMinorBeatTask;
 import filesystem.util.taskscheduler.TaskScheduler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -63,8 +64,12 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
         SocketStream ss = new SocketStream(new Socket(controllerHost, controllerPort));
         this.connectionHandler.addConnection(ss);
 
+        this.timer.scheduleAndStart(new MajorMinorBeatTask(this, 3),
+                "HolderHeartBeat", 5, 5);
+
         new Thread(this.server).start();
         new Thread(this.console).start();
+
 
         Event e = new ChunkHolderRequestsRegistration(this.getServerName(), new InetSocketAddress(
                 this.getServerHost(), this.getServerPort()));
@@ -255,6 +260,11 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     }
 
     private Event constructMajorHeartbeat() {
+
+
+
+
+
         return new ChunkHolderSendsMajorHeartbeat((ArrayList<ChunkMetadata>) fileHandler.packageMetadata(),
                 fileHandler.getTotalChunks());
 
@@ -275,6 +285,8 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
         // TODO: Pull from saved state, this will need to check the saved config against what is given at runtime/compile
     }
 
+
+
     /**
      * Used by the Holder
      */
@@ -287,7 +299,6 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
                                  byte[] chunkData) {
             super(fileName, chunkNumber, chunkData.length, chunkHash);
             this.sliceList = SliceMetadata.generateSliceMetadata(chunkData);
-
         }
 
         protected static class SliceMetadata {
@@ -303,8 +314,14 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
 
             private static ArrayList<SliceMetadata> generateSliceMetadata(byte[] chunkData) {
                 //TODO: Refactor file chunking logic to generalize, as slicing is exactly the same methodology
+
                 return null;
             }
         }
+
+
+
     }
+
+
 }

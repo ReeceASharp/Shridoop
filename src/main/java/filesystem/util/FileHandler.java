@@ -23,7 +23,7 @@ import static filesystem.util.Utils.resolveFilePath;
  * Goal of the fileHandler is to keep track of the files, used by the ChunkHolder
  */
 public class FileHandler {
-    //list of known chunks stored by the ChunkHolder
+    //list of known chunks stored by the FileHandler
     private final Map<String, ArrayList<ChunkMetadata>> fileChunks;
     private final RecordKeeper recordKeeper;
     private int totalChunks;
@@ -67,7 +67,7 @@ public class FileHandler {
         totalChunks++;
 
         //Store the update in records to be sent to the Controller
-        recordKeeper.addRecord(new ChunkAdd(cmd.fileName, cmd.chunkNumber, cmd.chunkHash));
+        recordKeeper.addRecord(new ChunkAdd(cmd.fileName, cmd.chunkNumber, cmd.chunkHash, cmd.chunkSize));
     }
 
     public synchronized void writeDataToDisk(Path fullPath, byte[] data) {
@@ -103,6 +103,10 @@ public class FileHandler {
     }
 
 
+    /**
+     * Package up all of the metadata known by the FileHandler, and by extension the ChunkHolder
+     * @return
+     */
     public List<ChunkMetadata> packageMetadata() {
         return fileChunks.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
     }

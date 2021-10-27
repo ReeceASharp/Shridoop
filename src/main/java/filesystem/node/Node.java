@@ -142,8 +142,8 @@ public abstract class Node {
         void runAction(Event e, Socket socket);
     }
 
-
+    /**
+     * Adds functions to the eventActions map that will allow the ConsoleParser to call on user input
+     */
     protected abstract void resolveEventMap();
-
-
 }

@@ -1,7 +1,9 @@
 package filesystem.node.metadata;
 
 
-public abstract class ChunkMetadata implements Comparable<ChunkMetadata> {
+import java.io.Serializable;
+
+public abstract class ChunkMetadata implements Comparable<ChunkMetadata>, Serializable {
     public String fileName;
     public int chunkNumber;
     public int chunkSize;
@@ -21,8 +23,7 @@ public abstract class ChunkMetadata implements Comparable<ChunkMetadata> {
         this.chunkSize = chunkSize;
         this.chunkHash = chunkHash;
     }
-
-    protected interface ChunkMetadataExtraction {
-
-    }
 }
+
+
+// add example_files/fileOne.txt dsajklda

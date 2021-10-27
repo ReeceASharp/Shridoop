@@ -15,10 +15,6 @@ public class ChunkHolderSendsMinorHeartbeat implements Event {
     private static final int type = CHUNK_SERVER_SENDS_MINOR_HEARTBEAT;
     private final List<Record> recentRecords;
 
-
-    // TODO: create file infrastructure to analyze, for the time being this
-    //  - will just be a shell event to be filled in later
-
     public ChunkHolderSendsMinorHeartbeat(List<Record> recentRecords) {
         this.recentRecords = recentRecords;
     }
@@ -31,5 +27,12 @@ public class ChunkHolderSendsMinorHeartbeat implements Event {
 
     public List<Record> getRecentRecords() {
         return recentRecords;
+    }
+
+    @Override
+    public String toString() {
+        return "ChunkHolderSendsMinorHeartbeat{" +
+                       "recentRecords=" + recentRecords +
+                       '}';
     }
 }

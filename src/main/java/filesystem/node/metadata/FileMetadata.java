@@ -23,6 +23,10 @@ public class FileMetadata {
         return chunkList.get(chunkNumber);
     }
 
+    public void addChunkMetadata(int chunkNumber, ChunkMetadata cmd) {
+        chunkList.put(chunkNumber, cmd);
+    }
+
     @Override
     public String toString() {
         return String.format(
