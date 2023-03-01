@@ -1,6 +1,7 @@
-package filesystem.util;
+package filesystem.console;
 
 import filesystem.node.Node;
+import filesystem.pool.Command;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -32,10 +33,10 @@ public class ConsoleParser implements Runnable {
     }
 
     private void resolveCommands(Node node) {
-
         this.commandList.put("commands", userInput -> this.commandList.keySet().toString());
         this.commandList.put("help", userInput -> node.help());
         this.commandList.put("quit", userInput -> null);
+        this.commandList.put("connections", userInput -> node.connectionInfo());
 
         // Get the node specific commands, and their mappings
         this.commandList.putAll(node.getCommandList());
@@ -46,6 +47,7 @@ public class ConsoleParser implements Runnable {
         Thread.currentThread().setName(getClass().getSimpleName());
         System.out.println(node.intro());
 
+        // Read in and Handle input
         parseInput();
 
         node.cleanup();
@@ -54,14 +56,14 @@ public class ConsoleParser implements Runnable {
 
     private void parseInput() {
         while (true) {
-
-            //System.out.print("Command: ");
             String input = userInput.nextLine();
 
             String result;
-            //Compare the input command with known commands
             try {
                 Command func = commandList.get(input.split(" ")[0].toLowerCase());
+//                TODO: Put into the node's queue to be handled (this is needed in case a race condition occurs with
+//                 services shutting down as a user inputs a command)
+
                 result = func.runCommand(input);
             } catch (NullPointerException npe) {
                 result = "Invalid Command.";

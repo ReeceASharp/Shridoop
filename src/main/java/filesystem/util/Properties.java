@@ -22,4 +22,7 @@ public class Properties {
         return properties.getProperty(key);
     }
 
+    public static int getInt(String key) {
+        return Integer.parseInt(get(key));
+    }
 }

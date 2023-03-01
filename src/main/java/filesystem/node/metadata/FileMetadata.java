@@ -1,6 +1,6 @@
 package filesystem.node.metadata;
 
-import filesystem.util.Utils;
+import filesystem.util.NodeUtils;
 
 import java.util.Collections;
 import java.util.TreeMap;
@@ -34,10 +34,7 @@ public class FileMetadata {
                         "FileSize: %d%n" +
                         "%s",
                 fileName, fileSize,
-                Utils.GenericListFormatter.getFormattedOutput(Collections.singletonList(chunkList.values()), "|", true));
+                NodeUtils.GenericListFormatter.getFormattedOutput(Collections.singletonList(chunkList.values()), "|", true));
     }
-
-//    TODO: Add functionality for Controller to push info to the through an update function here, receiving information
-//      from each chunkServer recordhandler
 
 }

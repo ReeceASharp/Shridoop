@@ -57,7 +57,7 @@ public class TCPServer implements Runnable {
             while (true) {
                 Socket incomingSocket = serverSocket.accept();
                 SocketStream ss = new SocketStream(incomingSocket);
-                node.connectionHandler.addConnection(ss);
+                node.addConnection(ss);
                 new Thread(new TCPReceiver(node, ss, this)).start();
             }
         } catch (SocketException e) {

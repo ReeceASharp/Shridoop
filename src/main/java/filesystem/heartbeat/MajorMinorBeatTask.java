@@ -1,13 +1,12 @@
-package filesystem.util.taskscheduler;
+package filesystem.heartbeat;
 
-import filesystem.util.HeartBeat;
 import filesystem.protocol.Protocol;
 
 import java.util.TimerTask;
 
 public class MajorMinorBeatTask extends TimerTask {
     private final HeartBeat hb;
-    // on nth beat, send out a major beat instead of a minor
+    // nth beat, send out a major beat instead of a minor
     private final int beatsBetweenMajor;
     // beat #
     private int currentBeats = 0;
@@ -21,6 +20,9 @@ public class MajorMinorBeatTask extends TimerTask {
     public void run() {
         //get the current beat type and pass it off to the Controller to handle
         int type = currentBeats == beatsBetweenMajor ? Protocol.HEARTBEAT_MAJOR : Protocol.HEARTBEAT_MINOR;
+
+//        TODO: FIX
+//        type = Protocol.HEARTBEAT_MINOR;HEARTBEAT_MINOR
 
         hb.onHeartBeat(type);
 

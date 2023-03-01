@@ -1,20 +1,20 @@
 package filesystem.node;
 
+import filesystem.console.ConsoleParser;
+import filesystem.pool.Command;
 import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
+import filesystem.transport.ContactList;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
-import filesystem.util.Command;
-import filesystem.util.ConsoleParser;
-import filesystem.util.ContactList;
 import filesystem.util.FileChunker;
+import filesystem.util.HostPortAddress;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,14 +26,15 @@ import static filesystem.protocol.Protocol.*;
 public class Client extends Node {
     private static final Logger logger = LogManager.getLogger(Client.class);
 
-    private final InetSocketAddress controllerAddress;
+    private final HostPortAddress controllerAddress;
     private final Map<String, String> intermediateFilePaths;
     private SocketStream controllerSocket;
 
     public Client(String host, int port) {
         super();
 
-        this.controllerAddress = new InetSocketAddress(host, port);
+        this.controllerAddress = new HostPortAddress(host, port);
+        logger.debug(controllerAddress);
         this.intermediateFilePaths = new HashMap<>();
     }
 
@@ -60,24 +61,24 @@ public class Client extends Node {
     @Override
     protected void resolveEventMap() {
         // Controller -> Client
-        this.eventActions.put(CONTROLLER_REPORTS_FILE_LIST, this::displayStoredFiles);
-        this.eventActions.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
-        this.eventActions.put(CONTROLLER_REPORTS_CHUNK_ADD_LIST, this::sendChunks);
-        this.eventActions.put(CONTROLLER_REPORTS_FILE_REMOVE_STATUS, this::deleteStatus);
+        this.eventFunctions.put(CONTROLLER_REPORTS_FILE_LIST, this::displayStoredFiles);
+        this.eventFunctions.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
+        this.eventFunctions.put(CONTROLLER_REPORTS_CHUNK_ADD_LIST, this::sendChunks);
+        this.eventFunctions.put(CONTROLLER_REPORTS_FILE_REMOVE_STATUS, this::deleteStatus);
         // ChunkHolder -> Client
-        this.eventActions.put(CHUNK_SERVER_SENDS_FILE_CHUNK, this::displayStoredFiles);
+        this.eventFunctions.put(CHUNK_SERVER_SENDS_FILE_CHUNK, this::displayStoredFiles);
     }
 
     @Override
     public String help() {
         return "Client: This is the interface that is used to connect to a currently running Controller. Using one " +
-                       "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
+                "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
     }
 
     @Override
     public String intro() {
         return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from " +
-                       "the cluster. More information available via 'help'.";
+                "the cluster. More information available via 'help'.";
     }
 
     @Override
@@ -155,10 +156,17 @@ public class Client extends Node {
     private void fetchChunks(Event e, Socket socket) {
         ControllerReportsChunkGetList response = (ControllerReportsChunkGetList) e;
 
-        //TODO: handle logic of querying the ChunkHolders
-        logger.debug(response.getChunkLocations());
+        //TODO: Improve logic of querying the ChunkHolders, go by logical file-system size
+        // (each gets simulated 500Mb, etc)
 
-        // For each chunk in the fetchlist, pick a random server and send a
+        // For each chunk in the fetch list, pick a random server and send a request
+        for (ContactList locations : response.getChunkLocations()) {
+            // Pick one and send a request for a fetch from it
+//            TODO: Randomize server
+            HostPortAddress location = locations.getServersToContact().get(0);
+        }
+
+//        TODO: Possibly implement console block func to wait until file is received and reconstructed
     }
 
     private void sendChunks(Event e, Socket socket) {
@@ -170,14 +178,14 @@ public class Client extends Node {
             byte[] buffer = new byte[CHUNK_SIZE];
 
             for (ContactList chunkToSend : response.getChunkDestinations()) {
-                byte[] bytesToSend = FileChunker.buildChunk(buffer, bis);
+                byte[] bytesToSend = FileChunker.chunkFile(buffer, bis);
 
                 //calculate initial hash, so it can be verified upon reaching its destination
-                String shaHash = FileChunker.getChunkHash(bytesToSend);
+                String shaHash = FileChunker.hashBytes(bytesToSend);
 
                 // Get the server at the front, the list is generated in a random order at the Controller,
                 // so there's no reason to use further randomness
-                InetSocketAddress address = chunkToSend.getServersToContact().remove(0);
+                HostPortAddress address = chunkToSend.getServersToContact().remove(0);
 
                 SocketStream socketStream = connectionHandler.getSocketStream(address);
                 if (socketStream == null)

@@ -16,20 +16,19 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
-import static filesystem.util.Utils.appendLn;
-import static filesystem.util.Utils.resolveFilePath;
+import static filesystem.util.NodeUtils.appendLn;
+import static filesystem.util.NodeUtils.resolveFilePath;
 
 /**
  * Goal of the fileHandler is to keep track of the files, used by the ChunkHolder
  */
 public class FileHandler {
+    //path of where the FileHandler starts its storage system
+    protected final Path homePath;
     //list of known chunks stored by the FileHandler
     private final Map<String, ArrayList<ChunkMetadata>> fileChunks;
     private final RecordKeeper recordKeeper;
     private int totalChunks;
-
-    //path of where the FileHandler starts its storage system
-    protected final Path homePath;
 
     public FileHandler(String homePath) {
         this.homePath = Paths.get(homePath);
@@ -89,7 +88,7 @@ public class FileHandler {
         boolean showFieldNames = true;
 
         for (Entry<String, ArrayList<ChunkMetadata>> file : fileChunks.entrySet()) {
-            String chunkDump = Utils.GenericListFormatter.getFormattedOutput(file.getValue(), "|", showFieldNames);
+            String chunkDump = NodeUtils.GenericListFormatter.getFormattedOutput(file.getValue(), "|", showFieldNames);
             sb.append(chunkDump);
 
             // Show only the field names at the top
@@ -97,7 +96,7 @@ public class FileHandler {
                 showFieldNames = false;
         }
 
-        sb.append(Utils.GenericListFormatter.getFormattedOutput(recordKeeper.getRecords(false), "|", true));
+        sb.append(NodeUtils.GenericListFormatter.getFormattedOutput(recordKeeper.getRecords(false), "|", true));
 
         return sb.toString();
     }
@@ -105,9 +104,9 @@ public class FileHandler {
 
     /**
      * Package up all of the metadata known by the FileHandler, and by extension the ChunkHolder
-     * @return
+     * @return An array of metadata relating to all chunks being managed by the FileHandler
      */
-    public List<ChunkMetadata> packageMetadata() {
+    public List<ChunkMetadata> getChunkMetadata() {
         return fileChunks.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
     }
 

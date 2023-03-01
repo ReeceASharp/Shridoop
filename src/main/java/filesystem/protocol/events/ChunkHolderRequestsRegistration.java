@@ -1,8 +1,9 @@
 package filesystem.protocol.events;
 
 import filesystem.protocol.Event;
+import filesystem.util.HostPortAddress;
 
-import java.net.InetSocketAddress;
+
 
 import static filesystem.protocol.Protocol.CHUNK_SERVER_REQUESTS_REGISTRATION;
 
@@ -13,11 +14,11 @@ public class ChunkHolderRequestsRegistration implements Event {
     static final int type = CHUNK_SERVER_REQUESTS_REGISTRATION;
 
     private final String serverName;
-    private final InetSocketAddress holderAddress;
+    private final HostPortAddress holderAddress;
 
 
 
-    public ChunkHolderRequestsRegistration(String serverName, InetSocketAddress address) {
+    public ChunkHolderRequestsRegistration(String serverName, HostPortAddress address) {
         this.serverName = serverName;
         this.holderAddress = address;
     }
@@ -27,7 +28,7 @@ public class ChunkHolderRequestsRegistration implements Event {
         return type;
     }
 
-    public InetSocketAddress getHolderAddress() {
+    public HostPortAddress getHolderAddress() {
         return holderAddress;
     }
 

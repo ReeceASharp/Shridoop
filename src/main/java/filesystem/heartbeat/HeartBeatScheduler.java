@@ -1,4 +1,4 @@
-package filesystem.util.taskscheduler;
+package filesystem.heartbeat;
 
 import filesystem.util.Pair;
 
@@ -9,11 +9,11 @@ import java.util.TimerTask;
 /**
  * Used by the
  */
-public class TaskScheduler {
+public class HeartBeatScheduler {
     private final Timer scheduleTimer;
     private final ArrayList<Pair<String, TimerTask>> currentTasks;
 
-    public TaskScheduler(String name) {
+    public HeartBeatScheduler(String name) {
         scheduleTimer = new Timer(String.format("%s:%s", name, this.getClass().getName()));
         currentTasks = new ArrayList<>();
     }

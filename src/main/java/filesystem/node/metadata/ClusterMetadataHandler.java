@@ -1,8 +1,8 @@
-package filesystem.util;
+package filesystem.node.metadata;
 
-import filesystem.node.metadata.FileMetadata;
+import filesystem.util.HostPortAddress;
+import filesystem.util.NodeUtils;
 
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.*;
 
@@ -35,8 +35,8 @@ public class ClusterMetadataHandler {
         currentFiles.put(file, new FileMetadata(file, fileSize));
     }
 
-    public synchronized void addServer(String serverName, InetSocketAddress address, Socket socket) {
-        String heartbeatStamp = Utils.timestampNowString();
+    public synchronized void addServer(String serverName, HostPortAddress address, Socket socket) {
+        String heartbeatStamp = NodeUtils.timestampNowString();
         currentServers.add(new HolderMetadata(serverName, address, socket, heartbeatStamp));
     }
 
@@ -55,7 +55,7 @@ public class ClusterMetadataHandler {
         return server.orElse(null);
     }
 
-    public synchronized HolderMetadata getServer(InetSocketAddress address) {
+    public synchronized HolderMetadata getServer(HostPortAddress address) {
         Optional<HolderMetadata> server = currentServers.stream().filter(metadata -> metadata.address.equals(address)).findFirst();
         return server.orElse(null);
     }
@@ -65,7 +65,7 @@ public class ClusterMetadataHandler {
         HolderMetadata server = getServer(socket);
         if (server == null)
             return;
-        server.heartbeatTimestamp = Utils.timestampNowString();
+        server.heartbeatTimestamp = NodeUtils.timestampNowString();
     }
 
     /**
@@ -73,12 +73,12 @@ public class ClusterMetadataHandler {
      */
     public static class HolderMetadata {
         public final String serverName;
-        public final InetSocketAddress address;
+        public final HostPortAddress address;
         public final Socket socket;
         public final UUID serverID;
         public String heartbeatTimestamp;
 
-        public HolderMetadata(String serverName, InetSocketAddress address, Socket socket, String heartbeatTimestamp) {
+        public HolderMetadata(String serverName, HostPortAddress address, Socket socket, String heartbeatTimestamp) {
             this.serverName = serverName;
             this.address = address;
             this.socket = socket;
@@ -89,12 +89,12 @@ public class ClusterMetadataHandler {
         @Override
         public String toString() {
             return "ServerMetadata{" +
-                           "serverName='" + serverName +
-                           ", address='" + address +
-                           ", socket=" + socket +
-                           ", serverID=" + serverID +
-                           ", heartbeatTimestamp='" + heartbeatTimestamp + '\'' +
-                           '}';
+                    "serverName='" + serverName +
+                    ", address='" + address +
+                    ", socket=" + socket +
+                    ", serverID=" + serverID +
+                    ", heartbeatTimestamp='" + heartbeatTimestamp + '\'' +
+                    '}';
         }
 
 

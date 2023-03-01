@@ -1,4 +1,4 @@
-package filesystem.util;
+package filesystem.heartbeat;
 
 @FunctionalInterface
 public interface HeartBeat {

@@ -1,7 +1,7 @@
 package filesystem.protocol.events;
 
 import filesystem.protocol.*;
-import filesystem.util.*;
+import filesystem.transport.ContactList;
 
 import java.util.*;
 

@@ -1,6 +1,8 @@
 package filesystem.transport;
 
-import java.net.InetSocketAddress;
+import filesystem.util.HostPortAddress;
+import filesystem.util.NodeUtils;
+
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -19,9 +21,11 @@ public class ConnectionHandler {
 
     @Override
     public String toString() {
-        return "ConnectionHandler{" +
-                       "connections=" + connections +
-                       '}';
+        return NodeUtils.GenericListFormatter.getFormattedOutput(connections, "|", true);
+    }
+
+    public synchronized int size() {
+        return connections.size();
     }
 
     public synchronized void addConnection(SocketStream ss) {
@@ -41,9 +45,18 @@ public class ConnectionHandler {
         return connections.get(index);
     }
 
-    public synchronized SocketStream getSocketStream(InetSocketAddress address) {
+    public synchronized SocketStream getSocketStream(HostPortAddress address) {
         Optional<SocketStream> server = connections.stream().filter(socketStream -> socketStream.address.equals(address)).findFirst();
         return server.orElse(null);
+    }
+
+    public synchronized SocketStream fetchKnownConnection(String nodeID) {
+
+        return null;
+    }
+
+    public synchronized SocketStream fetchKnownConnection(Socket incomingConnection) {
+        return null;
     }
 
 }

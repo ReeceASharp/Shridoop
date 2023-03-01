@@ -2,7 +2,7 @@ package filesystem.protocol.events;
 
 import filesystem.protocol.Event;
 import filesystem.protocol.Protocol;
-import filesystem.util.ContactList;
+import filesystem.transport.ContactList;
 
 import java.util.ArrayList;
 

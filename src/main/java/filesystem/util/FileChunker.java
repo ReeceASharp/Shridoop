@@ -12,7 +12,7 @@ import java.util.Formatter;
  */
 public class FileChunker {
     //Could be stored in some general config file both the Client and the Controller have access to
-    public static final int CHUNK_SIZE = 65536;  // 1024 * 64
+    public static final int CHUNK_SIZE = Properties.getInt("CHUNK_SIZE_BYTES");  // 1024 * 64
 
     public static int getChunkNumber(Path filePath) {
         long fileLength = getFileSize(filePath);
@@ -24,18 +24,18 @@ public class FileChunker {
         return filePath.toFile().length();
     }
 
-    public static String getChunkHash(byte[] chunkData) {
+    public static String hashBytes(byte[] chunkData) {
         MessageDigest md = null;
         try {
             md = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-        return byteArray2Hex(md.digest(chunkData));
+        return byteArrayToHex(md.digest(chunkData));
 
     }
 
-    private static String byteArray2Hex(final byte[] hash) {
+    private static String byteArrayToHex(final byte[] hash) {
         Formatter formatter = new Formatter();
         for (byte b : hash) {
             formatter.format("%02x", b);
@@ -43,7 +43,7 @@ public class FileChunker {
         return formatter.toString();
     }
 
-    public static byte[] buildChunk(byte[] buffer, BufferedInputStream bis) {
+    public static byte[] chunkFile(byte[] buffer, BufferedInputStream bis) {
         try {
             int bytesRead = bis.read(buffer);
             byte[] chunkBytes = new byte[bytesRead];
@@ -53,6 +53,7 @@ public class FileChunker {
             return null;
         }
     }
+
 
 }
 

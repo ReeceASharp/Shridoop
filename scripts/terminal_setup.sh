@@ -1,29 +1,42 @@
 #!/bin/bash
 
-#Useful Links
+source .env
+
+echo $VAL
+
+# References
 # https://man7.org/linux/man-pages/man1/tmux.1.html
 # https://ryan.himmelwright.net/post/scripting-tmux-workspaces/
 # https://stackoverflow.com/questions/10683349/forcing-bash-to-expand-variables-in-a-string-loaded-from-a-file
 # https://stackoverflow.com/questions/38741059/how-to-get-the-content-of-a-function-in-a-string-using-bash
 
-SESSION="Distributed"
+TMUX_SESSION="Distributed"
+
+# TODO: Get session from hostname 
 OS="linux"
+
+
+
+
 
 export SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 export PROJECT_ROOT=$(readlink -f "$SCRIPT_DIR"/..)
 
-# Dimensions of Grid of terminals, and percentage of entire terminal
+# Dimensions of Grid of terminals, and vertical percentage of entire terminal (uses full width)
 MATRIX_WIDTH=3
 MATRIX_HEIGHT=3
 MATRIX_PERCENT=70
 
+
 # Contents can be edited, and these commands will be ran inside their respective terminal
 top_left() {
-  cd "$PROJECT_ROOT"
+  # TODO:  Redirect instead of clear: "&> /dev/null"
+  cd "$PROJECT_ROOT" 
   clear
   java -cp target/Distributed_File_System-*.jar filesystem.node.Controller 7000
 }
 
+# Function sent to top right window
 top_right() {
   cd "$PROJECT_ROOT"
   echo 'Waiting 5 seconds for the Controller to start up'
@@ -32,6 +45,7 @@ top_right() {
   java -cp target/Distributed_File_System-*.jar filesystem.node.Client localhost 7000
 }
 
+# Function sent to matrix tmux windows
 matrix() {
   cd "$PROJECT_ROOT"
   echo 'Waiting 5 seconds for the Controller to start up'
@@ -58,9 +72,9 @@ COMMAND_TOP_RIGHT=${COMMAND_TOP_RIGHT:P:L-1}
 COMMAND_MATRIX=$(echo "$(function_contents matrix)" | envsubst)
 COMMAND_MATRIX=${COMMAND_MATRIX:P:L-1}
 
-if [ "$(tmux list-sessions | grep $SESSION)" == "" ]
+if [ "$(tmux list-sessions | grep $TMUX_SESSION)" == "" ]
 then
-  tmux new-session -d -s $SESSION -x "$(tput cols)" -y "$(tput lines)"
+  tmux new-session -d -s $TMUX_SESSION -x "$(tput cols)" -y "$(tput lines)"
   tmux splitw -v -p $MATRIX_PERCENT
 
   # ROW SETUP
@@ -76,7 +90,7 @@ then
   # Build out each row, and execute the script for each pane
   # Note: This can't be cone inside of the row setup because of the recursive nature of tmux's pane-split functionality
 
-  # Top Row
+  # Top Row, select the first pane, and split it in half horizontally 
   tmux select-pane -t 0
   tmux splitw -h -p 50
 
@@ -86,6 +100,7 @@ then
     tmux select-pane -t '{down-of}'
     for (( y = 1; y < MATRIX_WIDTH; y++ ))
     do
+      # Calculate the percentage of the entire width the pane should be taking up (TODO: Why can't this be a contant)
       WIDTH_PERCENT=$(( (100 / ( MATRIX_WIDTH + 1 - y) ) * (MATRIX_WIDTH - y) ))
       tmux splitw -h -p $WIDTH_PERCENT
     done
@@ -112,6 +127,6 @@ fi
 
 # Start up a client, and focus on it
 tmux select-pane -t 1
-tmux attach-session -t $SESSION
+tmux attach-session -t $TMUX_SESSION
 
 

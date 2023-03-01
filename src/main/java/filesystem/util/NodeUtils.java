@@ -3,20 +3,20 @@ package filesystem.util;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
-import java.net.InetSocketAddress;
+
 import java.net.Socket;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
-public final class Utils {
+public final class NodeUtils {
     public static void appendLn(StringBuilder sb, String toAppend) {
         sb.append(toAppend).append(System.getProperty("line.separator"));
     }
 
-    public static InetSocketAddress socketToInetSocketAddress(Socket s) {
-        return new InetSocketAddress(s.getInetAddress(), s.getPort());
+    public static HostPortAddress socketToHostPortAddress(Socket s) {
+        return new HostPortAddress(s.getInetAddress().getHostName(), s.getPort());
     }
 
     public static String timestampNowString() {

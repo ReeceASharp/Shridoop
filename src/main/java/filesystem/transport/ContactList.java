@@ -1,7 +1,8 @@
-package filesystem.util;
+package filesystem.transport;
+
+import filesystem.util.HostPortAddress;
 
 import java.io.Serializable;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 
 /**
@@ -12,9 +13,9 @@ import java.util.ArrayList;
  */
 public class ContactList implements Serializable {
     private final int chunkNumber;
-    private final ArrayList<InetSocketAddress> serversToContact;
+    private final ArrayList<HostPortAddress> serversToContact;
 
-    public ContactList(int chunkNumber, ArrayList<InetSocketAddress> serversToContact) {
+    public ContactList(int chunkNumber, ArrayList<HostPortAddress> serversToContact) {
         this.chunkNumber = chunkNumber;
         this.serversToContact = serversToContact;
     }
@@ -26,9 +27,9 @@ public class ContactList implements Serializable {
     @Override
     public String toString() {
         return "ContactList{" +
-                       "chunkNumber=" + chunkNumber +
-                       ", serversToContact=" + serversToContact +
-                       '}';
+                "chunkNumber=" + chunkNumber +
+                ", serversToContact=" + serversToContact +
+                '}';
     }
 
     /**
@@ -36,7 +37,7 @@ public class ContactList implements Serializable {
      *
      * @return Returns a list of servers that contain/will contain this chunk
      */
-    public ArrayList<InetSocketAddress> getServersToContact() {
+    public ArrayList<HostPortAddress> getServersToContact() {
         return serversToContact;
     }
 

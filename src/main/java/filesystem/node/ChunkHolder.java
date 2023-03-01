@@ -1,23 +1,30 @@
 package filesystem.node;
 
+import filesystem.console.ConsoleParser;
+import filesystem.heartbeat.HeartBeat;
+import filesystem.heartbeat.HeartBeatScheduler;
 import filesystem.node.metadata.ChunkMetadata;
 import filesystem.node.metadata.MetadataCache;
+import filesystem.pool.Command;
 import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
-import filesystem.util.*;
-import filesystem.util.taskscheduler.MajorMinorBeatTask;
-import filesystem.util.taskscheduler.TaskScheduler;
+import filesystem.util.FileChunker;
+import filesystem.util.FileHandler;
+import filesystem.util.HostPortAddress;
+import filesystem.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
+import java.io.Serializable;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,7 +37,9 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     private final String serverName;
     private final String homePath;
     private final FileHandler fileHandler;
-    private TaskScheduler timer;
+
+    // Why have this here?
+    private HeartBeatScheduler timer;
 
     public ChunkHolder(String serverName, String homePath) {
         super();
@@ -57,21 +66,22 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     private void setup(String controllerHost, int controllerPort, int listenPort) throws IOException {
         Files.createDirectories(Paths.get(this.homePath));
 
-        this.timer = new TaskScheduler(this.getClass().getName());
+        this.timer = new HeartBeatScheduler(this.getClass().getName());
         this.server = new TCPServer(this, listenPort);
         this.console = new ConsoleParser(this);
 
         SocketStream ss = new SocketStream(new Socket(controllerHost, controllerPort));
         this.connectionHandler.addConnection(ss);
 
-        this.timer.scheduleAndStart(new MajorMinorBeatTask(this, 3),
-                "HolderHeartBeat", 5, 5);
+//        TODO: Temp testing
+//        this.timer.scheduleAndStart(new MajorMinorBeatTask(this, Properties.getInt("MINOR_BEATS_BEFORE_MAJOR")),
+//                "HolderHeartBeat", Properties.getInt("CONTROLLER_HEARTBEAT_DELAY"), Properties.getInt("CONTROLLER_HEARTBEAT_SECONDS"));
 
         new Thread(this.server).start();
         new Thread(this.console).start();
 
 
-        Event e = new ChunkHolderRequestsRegistration(this.getServerName(), new InetSocketAddress(
+        Event e = new ChunkHolderRequestsRegistration(this.getServerName(), new HostPortAddress(
                 this.getServerHost(), this.getServerPort()));
 
         this.sendMessage(ss, e);
@@ -85,13 +95,13 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     @Override
     public String help() {
         return "This is strictly used for development and to see system details locally. " +
-                       "Available commands are shown with 'commands'.";
+                "Available commands are shown with 'commands'.";
     }
 
     @Override
     public String intro() {
         return "Distributed System ChunkHolder (DEV ONLY), type " +
-                       "'help' for more details: ";
+                "'help' for more details: ";
     }
 
     @Override
@@ -124,12 +134,12 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
 
     @Override
     protected void resolveEventMap() {
-        this.eventActions.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
-        this.eventActions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deRegistration);
-        this.eventActions.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
-        this.eventActions.put(CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT, this::respondWithStatus);
-        this.eventActions.put(CLIENT_REQUESTS_FILE_CHUNK, this::sendFileChunk);
-        this.eventActions.put(NODE_SENDS_FILE_CHUNK, this::fileAdd);
+        this.eventFunctions.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
+        this.eventFunctions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deRegistration);
+        this.eventFunctions.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
+        this.eventFunctions.put(CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT, this::respondWithStatus);
+        this.eventFunctions.put(CLIENT_REQUESTS_FILE_CHUNK, this::sendFileChunk);
+        this.eventFunctions.put(NODE_SENDS_FILE_CHUNK, this::fileAdd);
     }
 
     private void registrationStatus(Event e, Socket ignoredSocket) {
@@ -173,17 +183,16 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
 
     /**
      * Respond to the fileRequest from the client
-     *
-     * @param e
-     * @param socket
      */
     private void sendFileChunk(Event e, Socket socket) {
         ClientRequestsFileChunk request = (ClientRequestsFileChunk) e;
 
         byte[] fileData = fileHandler.getFileData(request.getFile());
+
+        if (fileData == null)
+            return;
+
         Event event = new ChunkHolderSendsFileChunk(fileData);
-
-
         sendMessage(socket, event);
     }
 
@@ -192,7 +201,7 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
      * requesting a replication
      *
      * @param e             Base event passed in, is actually NodeSendsFileChunk with respective request values
-     * @param ignoredSocket The socket the event came in on
+     * @param ignoredSocket The socket the event came in on, not being used
      */
     private void fileAdd(Event e, Socket ignoredSocket) {
         NodeSendsFileChunk request = (NodeSendsFileChunk) e;
@@ -202,7 +211,7 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
 
 
         // This may not be needed, the data is assured to be correct due to the rules of TCP
-        if (!request.getHash().equals(FileChunker.getChunkHash(request.getChunkData()))) {
+        if (!request.getHash().equals(FileChunker.hashBytes(request.getChunkData()))) {
             logger.error("Data does match origin. Requesting a new chunk.");
             // TODO: possibly exit method early and send a request back to the node for another file
             //  in which case this will be started again
@@ -216,13 +225,13 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
         fileHandler.storeFileChunk(cdmd, request.getChunkData(), true);
 
 
-        ArrayList<InetSocketAddress> serversToContact = request.getServersToContact();
+        ArrayList<HostPortAddress> serversToContact = request.getServersToContact();
         if (serversToContact.isEmpty()) {
             logger.debug("Completed Replication of file chunk: " + request.getFileName() + request.getChunkNumber());
             return;
         }
 
-        InetSocketAddress address = serversToContact.remove(0);
+        HostPortAddress address = serversToContact.remove(0);
         SocketStream socketStream = connectionHandler.getSocketStream(address);
         if (socketStream == null) {
             logger.debug("Generating new Connection.");
@@ -246,8 +255,8 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
      */
     private String showConfig() {
         return String.format("ServerName: '%s', " +
-                                     "Path: '%s'%n" +
-                                     "Server%s%n",
+                        "Path: '%s'%n" +
+                        "Server%s%n",
                 serverName, homePath, server);
     }
 
@@ -260,14 +269,8 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     }
 
     private Event constructMajorHeartbeat() {
-
-
-
-
-
-        return new ChunkHolderSendsMajorHeartbeat((ArrayList<ChunkMetadata>) fileHandler.packageMetadata(),
+        return new ChunkHolderSendsMajorHeartbeat((ArrayList<ChunkMetadata>) fileHandler.getChunkMetadata(),
                 fileHandler.getTotalChunks());
-
     }
 
     private Event constructMinorHeartbeat() {
@@ -286,11 +289,11 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     }
 
 
-
     /**
      * Used by the Holder
      */
     protected static class ChunkDataMetadata extends ChunkMetadata {
+        // TODO: Use with Reed-Solomon
         private final ArrayList<SliceMetadata> sliceList;
 
         public ChunkDataMetadata(String fileName,
@@ -301,7 +304,13 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
             this.sliceList = SliceMetadata.generateSliceMetadata(chunkData);
         }
 
-        protected static class SliceMetadata {
+        /**
+         * Slices of a chunk. Assumption is that there are multiple slices in a chunk.
+         */
+        protected static class SliceMetadata implements Serializable {
+            //Default: 1024 * 8, 2^13
+            public static final int SLICE_SIZE_BYTES = Properties.getInt("SLICE_SIZE_BYTES");
+
             public final int sliceNumber;
             public final int sliceSize;
             public final String checksum;
@@ -312,13 +321,33 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
                 this.checksum = checksum;
             }
 
+            /**
+             * The function that chops up the chunk into slices
+             * @param chunkData: The chunk being broken up
+             * @return An array of metadata with each element being metadata about the chunk, in sequential order
+             */
             private static ArrayList<SliceMetadata> generateSliceMetadata(byte[] chunkData) {
-                //TODO: Refactor file chunking logic to generalize, as slicing is exactly the same methodology
+                int slices = chunkData.length / SLICE_SIZE_BYTES;
+                if (chunkData.length % SLICE_SIZE_BYTES != 0)
+                    slices++;
 
-                return null;
+                byte[] buf = new byte[SLICE_SIZE_BYTES];
+
+                ByteArrayInputStream byteStream = new ByteArrayInputStream(chunkData);
+                ArrayList<SliceMetadata> metadata = new ArrayList<>();
+
+                int read;
+                for (int i = 1; i <= slices; i++) {
+                    read = byteStream.read(buf, 0, SLICE_SIZE_BYTES);
+                    if (read < SLICE_SIZE_BYTES)
+                        buf = Arrays.copyOf(buf, read);
+                    String checksum = FileChunker.hashBytes(chunkData);
+                    metadata.add(new SliceMetadata(i, read, checksum));
+                }
+//                NodeUtils.GenericListFormatter.getFormattedOutput(metadata, "|", true);
+                return metadata;
             }
         }
-
 
 
     }

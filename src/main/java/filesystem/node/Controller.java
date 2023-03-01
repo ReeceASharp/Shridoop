@@ -1,37 +1,43 @@
 package filesystem.node;
 
+import filesystem.console.ConsoleParser;
+import filesystem.heartbeat.HeartBeat;
+import filesystem.heartbeat.HeartBeatScheduler;
 import filesystem.node.metadata.ChunkMetadata;
+import filesystem.node.metadata.ClusterMetadataHandler;
 import filesystem.node.metadata.FileMetadata;
 import filesystem.node.metadata.MetadataCache;
+import filesystem.pool.Command;
 import filesystem.protocol.Event;
 import filesystem.protocol.Record;
 import filesystem.protocol.events.*;
 import filesystem.protocol.records.ChunkAdd;
+import filesystem.transport.ContactList;
 import filesystem.transport.SocketStream;
 import filesystem.transport.TCPServer;
+import filesystem.util.HostPortAddress;
+import filesystem.util.LogConfiguration;
+import filesystem.util.NodeUtils;
 import filesystem.util.Properties;
-import filesystem.util.*;
-import filesystem.util.taskscheduler.TaskScheduler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import static filesystem.protocol.Protocol.*;
-import static filesystem.util.Utils.appendLn;
+import static filesystem.util.NodeUtils.appendLn;
 
 
 public class Controller extends Node implements HeartBeat, MetadataCache {
     private static final Logger logger = LogManager.getLogger(Controller.class);
-    private static final int REPLICATION_FACTOR = Integer.parseInt(Properties.get("REPLICATION_FACTOR"));
+    private static final int REPLICATION_FACTOR = Properties.getInt("REPLICATION_FACTOR");
     private final int port;
     private final ClusterMetadataHandler clusterHandler;
     //    private boolean isActive;
-    private TaskScheduler timer;
+    private HeartBeatScheduler timer;
     private CountDownLatch activeChunkHolders;
 
     public Controller(int port) {
@@ -45,8 +51,6 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     public static void main(String[] args) {
         if (Properties.get("DEBUG").equals("true"))
             LogConfiguration.debug();
-        logger.info("Debug: " + Properties.get("DEBUG"));
-
 
         int port = Integer.parseInt(args[0]);
         Controller controller = new Controller(port);
@@ -58,7 +62,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
     private void setup() {
         // Builds components outside of the constructor that require a reference to the parent to function
-        this.timer = new TaskScheduler(this.getClass().getName());
+        this.timer = new HeartBeatScheduler(this.getClass().getName());
         this.server = new TCPServer(this, port);
         this.console = new ConsoleParser(this);
 
@@ -80,15 +84,15 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     @Override
     public String help() {
         return "Controller: This is the driver that organizes all communication for" +
-                       "the cluster. Setup of the cluster is done here, and clients all communicate " +
-                       "with this driver in order to store, update, or remove files. Available commands " +
-                       "are shown with 'commands'.";
+                "the cluster. Setup of the cluster is done here, and clients all communicate " +
+                "with this driver in order to store, update, or remove files. Available commands " +
+                "are shown with 'commands'.";
     }
 
     @Override
     public String intro() {
         return "Distributed System Controller: Enter 'help' for more information on configuration " +
-                       "or 'init' to start up the cluster";
+                "or 'init' to start up the cluster";
     }
 
     @Override
@@ -121,16 +125,16 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     @Override
     protected void resolveEventMap() {
         // ChunkHolder -> Controller
-        this.eventActions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
-        this.eventActions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMajorBeat);
-        this.eventActions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::receiveMinorBeat);
-        this.eventActions.put(CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT, this::receiveHealthStatus);
+        this.eventFunctions.put(CHUNK_SERVER_REQUESTS_REGISTRATION, this::chunkServerRegistration);
+        this.eventFunctions.put(CHUNK_SERVER_REPORTS_DEREGISTRATION_STATUS, this::deregistrationResponse);
+        this.eventFunctions.put(CHUNK_SERVER_SENDS_MAJOR_HEARTBEAT, this::receiveMajorBeat);
+        this.eventFunctions.put(CHUNK_SERVER_SENDS_MINOR_HEARTBEAT, this::receiveMinorBeat);
+        this.eventFunctions.put(CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT, this::receiveHealthStatus);
         // Client -> Controller
-        this.eventActions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
-        this.eventActions.put(CLIENT_REQUESTS_FILE_DELETE, this::fileDelete);
-        this.eventActions.put(CLIENT_REQUESTS_FILE, this::fileGet);
-        this.eventActions.put(CLIENT_REQUESTS_FILE_LIST, this::fileList);
+        this.eventFunctions.put(CLIENT_REQUESTS_FILE_ADD, this::fileAdd);
+        this.eventFunctions.put(CLIENT_REQUESTS_FILE_DELETE, this::fileDelete);
+        this.eventFunctions.put(CLIENT_REQUESTS_FILE, this::fileGet);
+        this.eventFunctions.put(CLIENT_REQUESTS_FILE_LIST, this::fileList);
         //this.eventActions.put(CLIENT_REQUESTS_CHUNK_SERVER_METADATA, this::chunkServerData);
     }
 
@@ -167,11 +171,11 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
     private void receiveMajorBeat(Event e, Socket socket) {
         ChunkHolderSendsMajorHeartbeat heartbeat = (ChunkHolderSendsMajorHeartbeat) e;
-        InetSocketAddress holderAddress = Utils.socketToInetSocketAddress(socket);
+        HostPortAddress holderAddress = NodeUtils.socketToHostPortAddress(socket);
         System.out.println(heartbeat);
         for (ChunkMetadata cmd : heartbeat.getCurrentChunks()) {
             ChunkLocationMetadata clmd = (ChunkLocationMetadata) clusterHandler.getFile(cmd.fileName)
-                                                                         .getChunkMetadata(cmd.chunkNumber);
+                    .getChunkMetadata(cmd.chunkNumber);
 
             if (!clmd.serversHoldingChunk.contains(holderAddress)) {
                 clmd.serversHoldingChunk.add(holderAddress);
@@ -187,7 +191,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
     private void receiveMinorBeat(Event e, Socket socket) {
         ChunkHolderSendsMinorHeartbeat heartbeat = (ChunkHolderSendsMinorHeartbeat) e;
-        InetSocketAddress holderAddress = Utils.socketToInetSocketAddress(socket);
+        HostPortAddress holderAddress = NodeUtils.socketToHostPortAddress(socket);
         System.out.println(heartbeat);
 
         for (Record r : heartbeat.getRecentRecords()) {
@@ -229,7 +233,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
         ArrayList<ClusterMetadataHandler.HolderMetadata> serverList = clusterHandler.getServers();
         ArrayList<ContactList> chunkDestinations = new ArrayList<>();
-        ArrayList<InetSocketAddress> selectedServers = new ArrayList<>();
+        ArrayList<HostPortAddress> selectedServers = new ArrayList<>();
 
         clusterHandler.addFile(request.getFile(), request.getNumberOfChunks(), request.getFileSize());
 
@@ -238,10 +242,10 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
 
             //Generate a random list of distinct ints from 0 to n-1 ChunkHolders, then grab k amount needed for replication
             List<Integer> randomServerIndexes = new Random().ints(0, serverList.size())
-                                                        .distinct()
-                                                        .limit(REPLICATION_FACTOR)
-                                                        .boxed()
-                                                        .collect(Collectors.toList());
+                    .distinct()
+                    .limit(REPLICATION_FACTOR)
+                    .boxed()
+                    .collect(Collectors.toList());
 
             for (Integer serverIndex : randomServerIndexes) {
                 selectedServers.add(serverList.get(serverIndex).address);
@@ -274,7 +278,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
             // For each chunk location, send out a request to delete it
             for (ChunkMetadata chunkMetadata : fmd.chunkList.values()) {
                 ChunkLocationMetadata locationChunk = (ChunkLocationMetadata) chunkMetadata;
-                for (InetSocketAddress url : locationChunk.serversHoldingChunk) {
+                for (HostPortAddress url : locationChunk.serversHoldingChunk) {
                     Socket chunkSocket = clusterHandler.getServer(url).socket;
                     ControllerRequestsChunkDelete request = new ControllerRequestsChunkDelete(
                             fileToDelete, chunkMetadata.chunkNumber);
@@ -344,7 +348,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         for (FileMetadata fmd : clusterHandler.getFiles()) {
             sb.append(String.format("FileName: %s, FileSize: %d%n", fmd.fileName, fmd.fileSize));
             List<ChunkMetadata> chunks = new ArrayList<>(fmd.chunkList.values());
-            sb.append(Utils.GenericListFormatter.getFormattedOutput(chunks
+            sb.append(NodeUtils.GenericListFormatter.getFormattedOutput(chunks
                     , "|", true));
         }
 
@@ -389,7 +393,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         ArrayList<ClusterMetadataHandler.HolderMetadata> smd = clusterHandler.getServers();
 
         appendLn(sb, String.format("Nodes: %d", smd.size()));
-        sb.append(Utils.GenericListFormatter.getFormattedOutput(
+        sb.append(NodeUtils.GenericListFormatter.getFormattedOutput(
                 new ArrayList<>(smd), "|", true));
         return sb.toString();
     }
@@ -449,20 +453,19 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     }
 
 
-
     /**
      * Metadata for each chunk, contains the chunkNumber of the associated file,
      * and a list of ID's that when used with the ServerHandler, can get relevant details
      * Default size of Chunk is 64kb
      */
     public static class ChunkLocationMetadata extends ChunkMetadata {
-        public ArrayList<InetSocketAddress> serversHoldingChunk;
+        public ArrayList<HostPortAddress> serversHoldingChunk;
 
         public ChunkLocationMetadata(String fileName,
                                      int chunkNumber,
                                      int chunkSize,
                                      String chunkHash,
-                                     ArrayList<InetSocketAddress> serversHoldingChunk) {
+                                     ArrayList<HostPortAddress> serversHoldingChunk) {
             super(fileName, chunkNumber, chunkSize, chunkHash);
             this.serversHoldingChunk = serversHoldingChunk;
 
@@ -475,11 +478,11 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
         @Override
         public String toString() {
             return "LiteChunkMetadata{" +
-                           "chunkNumber=" + chunkNumber +
-                           ", chunkSize=" + chunkSize +
-                           ", chunkHash='" + chunkHash + '\'' +
-                           ", serversHoldingChunk=" + serversHoldingChunk +
-                           '}';
+                    "chunkNumber=" + chunkNumber +
+                    ", chunkSize=" + chunkSize +
+                    ", chunkHash='" + chunkHash + '\'' +
+                    ", serversHoldingChunk=" + serversHoldingChunk +
+                    '}';
         }
     }
 }

@@ -3,7 +3,12 @@ package filesystem.node.metadata;
 
 import java.io.Serializable;
 
+/**
+ * Metadata / properties of a section of a file's data currently on the filesystem. This metadata includes any
+ * information needed to both uniquely identify the file, and allow support systems to maintain data integrity
+ */
 public abstract class ChunkMetadata implements Comparable<ChunkMetadata>, Serializable {
+
     public String fileName;
     public int chunkNumber;
     public int chunkSize;

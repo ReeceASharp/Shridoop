@@ -38,7 +38,7 @@ public class TCPReceiver implements Runnable {
                     if (event == null)
                         continue;
                 } catch (Exception e) {
-                    // Always try to cleanup on exception, then handle it separately
+                    // Always try to clean-up on exception, then handle it separately
                     cleanup();
                     throw e;
                 }

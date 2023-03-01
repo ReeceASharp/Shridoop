@@ -27,7 +27,7 @@ public class Pair<L, R> implements Serializable {
         if (o == null || getClass() != o.getClass()) return false;
         Pair<?, ?> pair = (Pair<?, ?>) o;
         return Objects.equals(getLeft(), pair.getLeft()) &&
-                       Objects.equals(getRight(), pair.getRight());
+                Objects.equals(getRight(), pair.getRight());
     }
 
     public L getLeft() {

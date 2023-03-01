@@ -1,6 +1,5 @@
-package filesystem.util.taskscheduler;
+package filesystem.heartbeat;
 
-import filesystem.util.HeartBeat;
 import filesystem.protocol.Protocol;
 
 import java.util.TimerTask;
