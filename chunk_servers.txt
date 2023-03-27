@@ -1,0 +1,15 @@
+# Filesystem Config, read in by run.sh, lines starting with '#' are comments and are ignored
+# The format is: "^<private local ip> <server name>$".
+# 10.0.0.0/8 is the whole private ip range, so anything within that is usable if set in the config.
+# Default config is to create a network on the subnet range 10.0.1.0/24, with the second half of the range being used
+# for clients, and the first half for servers.  The server names are just for convenience / readability.
+10.0.1.10 red
+#10.0.1.11 yellow
+#10.0.1.12 blue
+#10.0.1.13 green
+#10.0.1.14 purple
+#10.0.1.15 orange
+#10.0.1.16 violet
+#10.0.1.17 indigo
+#10.0.1.18 turquoise
+#10.0.1.19 lime

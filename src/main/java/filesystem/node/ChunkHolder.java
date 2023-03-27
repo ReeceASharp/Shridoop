@@ -50,6 +50,21 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     }
 
     public static void main(String[] args) throws IOException {
+        // while true sleep for 5 seconds
+
+        Map<String, String> env = System.getenv();
+        System.out.println("env: " + env.toString());
+
+        try {
+            int _i = 0;
+            while (_i++ < 1000000000) {
+                System.out.println("Hello World");
+                Thread.sleep(10000);
+        }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
         // Parse commandline args
         final String controllerHost = args[0];
         final int controllerPort = Integer.parseInt(args[1]);

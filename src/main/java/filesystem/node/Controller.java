@@ -49,6 +49,17 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     }
 
     public static void main(String[] args) {
+        try {
+            int _i = 0;
+            while (_i++ < 1000000000) {
+                System.out.println("Hello World");
+                Thread.sleep(10000);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
         if (Properties.get("DEBUG").equals("true"))
             LogConfiguration.debug();
 
@@ -61,7 +72,7 @@ public class Controller extends Node implements HeartBeat, MetadataCache {
     }
 
     private void setup() {
-        // Builds components outside of the constructor that require a reference to the parent to function
+        // Builds components outside the constructor that require a reference to the parent to function
         this.timer = new HeartBeatScheduler(this.getClass().getName());
         this.server = new TCPServer(this, port);
         this.console = new ConsoleParser(this);

@@ -40,6 +40,17 @@ public class Client extends Node {
 
 
     public static void main(String[] args) {
+        try {
+            int _i = 0;
+            while (_i++ < 1000000000) {
+                System.out.println("Hello World");
+                Thread.sleep(10000);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
         String host = args[0];
         int port = Integer.parseInt(args[1]);
 
