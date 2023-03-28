@@ -1,4 +1,4 @@
-package filesystem.protocol;
+package filesystem.interfaces;
 
 import java.io.Serializable;
 
@@ -10,3 +10,4 @@ public interface Event extends Serializable {
      */
     int getType();
 }
+

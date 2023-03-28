@@ -1,7 +1,7 @@
 package filesystem.console;
 
-import filesystem.node.Node;
-import filesystem.pool.Command;
+import filesystem.interfaces.CommandInterface;
+import filesystem.interfaces.Command;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -16,41 +16,42 @@ public class ConsoleParser implements Runnable {
     private static final Logger logger = LogManager.getLogger(ConsoleParser.class);
 
     private final Map<String, Command> commandList = new HashMap<>();
+    private final CommandInterface commandInterface;
 
-    private final Node node;
     private final Scanner userInput;
 
 
-    public ConsoleParser(Node node) {
-        this.setup(node);
+    public ConsoleParser(CommandInterface commandInterface) {
+        this.commandInterface = commandInterface;
 
-        this.node = node;
+        this.setup(commandInterface);
+
         this.userInput = new Scanner(System.in);
     }
 
-    private void setup(Node node) {
-        resolveCommands(node);
+    private void setup(CommandInterface commandInterface) {
+        resolveCommands(commandInterface);
     }
 
-    private void resolveCommands(Node node) {
+    private void resolveCommands(CommandInterface commandInterface) {
         this.commandList.put("commands", userInput -> this.commandList.keySet().toString());
-        this.commandList.put("help", userInput -> node.help());
+        this.commandList.put("help", userInput -> commandInterface.help());
         this.commandList.put("quit", userInput -> null);
-        this.commandList.put("connections", userInput -> node.connectionInfo());
+        this.commandList.put("connections", userInput -> commandInterface.connectionInfo());
 
         // Get the node specific commands, and their mappings
-        this.commandList.putAll(node.getCommandList());
+        this.commandList.putAll(commandInterface.getCommandList());
     }
 
     @Override
     public void run() {
         Thread.currentThread().setName(getClass().getSimpleName());
-        System.out.println(node.intro());
+        System.out.println(commandInterface.intro());
 
         // Read in and Handle input
         parseInput();
 
-        node.cleanup();
+        commandInterface.exit();
         logger.debug("Exiting ConsoleParser.");
     }
 

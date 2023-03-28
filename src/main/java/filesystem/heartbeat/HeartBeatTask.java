@@ -1,5 +1,6 @@
 package filesystem.heartbeat;
 
+import filesystem.interfaces.HeartBeat;
 import filesystem.protocol.Protocol;
 
 import java.util.TimerTask;

@@ -1,6 +1,8 @@
 package filesystem.pool;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
+import filesystem.interfaces.EventInterface;
+import filesystem.interfaces.Task;
 
 import java.net.Socket;
 
@@ -8,9 +10,9 @@ import java.net.Socket;
 public class EventTask implements Task {
     Event event;
     Socket socket;
-    EventAction actionToRun;
+    EventInterface actionToRun;
 
-    public EventTask(Event e, Socket s, EventAction c) {
+    public EventTask(Event e, Socket s, EventInterface c) {
         this.event = e;
         this.socket = s;
         this.actionToRun = c;
@@ -18,6 +20,6 @@ public class EventTask implements Task {
 
     @Override
     public void run() {
-        actionToRun.runAction(event, socket);
+        actionToRun.handleEvent(event, socket);
     }
 }

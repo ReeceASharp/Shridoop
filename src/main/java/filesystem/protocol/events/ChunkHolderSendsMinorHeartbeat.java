@@ -1,7 +1,7 @@
 package filesystem.protocol.events;
 
-import filesystem.protocol.Event;
-import filesystem.protocol.Record;
+import filesystem.interfaces.Event;
+import filesystem.interfaces.Record;
 
 import java.util.List;
 

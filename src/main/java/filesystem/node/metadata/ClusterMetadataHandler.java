@@ -37,7 +37,9 @@ public class ClusterMetadataHandler {
 
     public synchronized void addServer(String serverName, HostPortAddress address, Socket socket) {
         String heartbeatStamp = NodeUtils.timestampNowString();
-        currentServers.add(new HolderMetadata(serverName, address, socket, heartbeatStamp));
+        if (!currentServers.add(new HolderMetadata(serverName, address, socket, heartbeatStamp))) {
+            throw new RuntimeException("Failed to add server to cluster");
+        }
     }
 
     public synchronized boolean removeBySocket(Socket socket) {

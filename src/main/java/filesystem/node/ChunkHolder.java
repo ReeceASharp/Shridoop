@@ -1,15 +1,13 @@
 package filesystem.node;
 
-import filesystem.console.ConsoleParser;
-import filesystem.heartbeat.HeartBeat;
 import filesystem.heartbeat.HeartBeatScheduler;
+import filesystem.interfaces.Command;
+import filesystem.interfaces.Event;
+import filesystem.interfaces.HeartBeat;
+import filesystem.interfaces.MetadataCache;
 import filesystem.node.metadata.ChunkMetadata;
-import filesystem.node.metadata.MetadataCache;
-import filesystem.pool.Command;
-import filesystem.protocol.Event;
 import filesystem.protocol.events.*;
-import filesystem.transport.SocketStream;
-import filesystem.transport.TCPServer;
+import filesystem.transport.SocketWrapper;
 import filesystem.util.FileChunker;
 import filesystem.util.FileHandler;
 import filesystem.util.HostPortAddress;
@@ -41,8 +39,8 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     // Why have this here?
     private HeartBeatScheduler timer;
 
-    public ChunkHolder(String serverName, String homePath) {
-        super();
+    public ChunkHolder(int listenPort, String serverName, String homePath) {
+        super(listenPort);
 
         this.serverName = serverName;
         this.homePath = homePath;
@@ -50,50 +48,37 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     }
 
     public static void main(String[] args) throws IOException {
-        // while true sleep for 5 seconds
-
-        Map<String, String> env = System.getenv();
-        System.out.println("env: " + env.toString());
-
-        try {
-            int _i = 0;
-            while (_i++ < 1000000000) {
-                System.out.println("Hello World");
-                Thread.sleep(10000);
-        }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        // The IP is set via an env variable since it's dynamically assigned by the docker container
+        String ip = System.getenv("IP_ADDRESS");
 
         // Parse commandline args
-        final String controllerHost = args[0];
-        final int controllerPort = Integer.parseInt(args[1]);
-        final int listenPort = Integer.parseInt(args[2]);
-        final String serverName = args[3];
-        final String homePath = args[4];
+        final String controllerHost = Properties.getEnv("CONTROLLER_HOST");
+        final int controllerPort = Properties.getEnvInt("CONTROLLER_PORT");
+        final int listenPort = Properties.getInt("");
+        final String name = Properties.getEnv("CHUNK_HOLDER_NAME");
+        final String storagePath = Properties.getEnv("CHUNK_SERVER_STORAGE_PATH");
 
-        ChunkHolder server = new ChunkHolder(serverName, homePath);
-        server.setup(controllerHost, controllerPort, listenPort);
+        ChunkHolder server = new ChunkHolder(listenPort, name, storagePath);
 
-        logger.debug(String.format("Listen: %d, serverName: %s, StoragePath: %s", listenPort, serverName, homePath));
+        Files.createDirectories(Paths.get(storagePath));
+//        server.setup(controllerHost, controllerPort, listenPort);
+
+        server.init(controllerHost, controllerPort, listenPort);
+
+        logger.debug(String.format("Listen: %d, name: %s, StoragePath: %s", listenPort, name, storagePath));
     }
 
-    private void setup(String controllerHost, int controllerPort, int listenPort) throws IOException {
-        Files.createDirectories(Paths.get(this.homePath));
+    private void init(String controllerHost, int controllerPort, int listenPort) throws IOException {
 
-        this.timer = new HeartBeatScheduler(this.getClass().getName());
-        this.server = new TCPServer(this, listenPort);
-        this.console = new ConsoleParser(this);
 
-        SocketStream ss = new SocketStream(new Socket(controllerHost, controllerPort));
-        this.connectionHandler.addConnection(ss);
+//        this.timer = new HeartBeatScheduler(this.getClass().getName());
+
+
+        SocketWrapper ss = this.connectionHandler.addConnection(new Socket(controllerHost, controllerPort));
 
 //        TODO: Temp testing
 //        this.timer.scheduleAndStart(new MajorMinorBeatTask(this, Properties.getInt("MINOR_BEATS_BEFORE_MAJOR")),
 //                "HolderHeartBeat", Properties.getInt("CONTROLLER_HEARTBEAT_DELAY"), Properties.getInt("CONTROLLER_HEARTBEAT_SECONDS"));
-
-        new Thread(this.server).start();
-        new Thread(this.console).start();
 
 
         Event e = new ChunkHolderRequestsRegistration(this.getServerName(), new HostPortAddress(
@@ -108,28 +93,10 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     }
 
     @Override
-    public String help() {
-        return "This is strictly used for development and to see system details locally. " +
-                "Available commands are shown with 'commands'.";
-    }
-
-    @Override
-    public String intro() {
-        return "Distributed System ChunkHolder (DEV ONLY), type " +
-                "'help' for more details: ";
-    }
-
-    @Override
     public void cleanup() {
         logger.debug("Exiting" + this.getClass().getCanonicalName());
-
-        timer.stopTasks();
-        server.cleanup();
-
-        // Note: because the console has a Scanner waiting for an input from System.in,
-        // the only real way to exit is via the System, which is fine considering the
-        // server was shut down gracefully
-        System.exit(0);
+//        timer.stopTasks();
+        connectionHandler.cleanup();
     }
 
     @Override
@@ -149,12 +116,12 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
 
     @Override
     protected void resolveEventMap() {
-        this.eventFunctions.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
-        this.eventFunctions.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deRegistration);
-        this.eventFunctions.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
-        this.eventFunctions.put(CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT, this::respondWithStatus);
-        this.eventFunctions.put(CLIENT_REQUESTS_FILE_CHUNK, this::sendFileChunk);
-        this.eventFunctions.put(NODE_SENDS_FILE_CHUNK, this::fileAdd);
+        this.eventCallbacks.put(CONTROLLER_REPORTS_REGISTRATION_STATUS, this::registrationStatus);
+        this.eventCallbacks.put(CONTROLLER_REQUESTS_DEREGISTRATION, this::deRegistration);
+        this.eventCallbacks.put(CONTROLLER_REPORTS_SHUTDOWN, this::handleShutdown);
+        this.eventCallbacks.put(CONTROLLER_REQUESTS_FUNCTIONAL_HEARTBEAT, this::respondWithStatus);
+        this.eventCallbacks.put(CLIENT_REQUESTS_FILE_CHUNK, this::sendFileChunk);
+        this.eventCallbacks.put(NODE_SENDS_FILE_CHUNK, this::fileAdd);
     }
 
     private void registrationStatus(Event e, Socket ignoredSocket) {
@@ -247,22 +214,19 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
         }
 
         HostPortAddress address = serversToContact.remove(0);
-        SocketStream socketStream = connectionHandler.getSocketStream(address);
-        if (socketStream == null) {
+        SocketWrapper socketWrapper = connectionHandler.getSocketStream(address);
+        if (socketWrapper == null) {
             logger.debug("Generating new Connection.");
-            socketStream = connect(address);
+            socketWrapper = connectionHandler.connect(address);
         }
 
         //Can reuse the object, as it's the same data, just with an updated data-structure
-        sendMessage(socketStream.socket, request);
+        sendMessage(socketWrapper.socket, request);
     }
 
     private String listChunks() {
-        StringBuilder sb = new StringBuilder();
 
-        sb.append(fileHandler);
-
-        return sb.toString();
+        return String.valueOf(fileHandler);
     }
 
     /**
@@ -271,8 +235,8 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
     private String showConfig() {
         return String.format("ServerName: '%s', " +
                         "Path: '%s'%n" +
-                        "Server%s%n",
-                serverName, homePath, server);
+                        "ConnectionHandler: %s%n",
+                serverName, homePath, connectionHandler);
     }
 
     @Override
@@ -338,6 +302,7 @@ public class ChunkHolder extends Node implements HeartBeat, MetadataCache {
 
             /**
              * The function that chops up the chunk into slices
+             *
              * @param chunkData: The chunk being broken up
              * @return An array of metadata with each element being metadata about the chunk, in sequential order
              */

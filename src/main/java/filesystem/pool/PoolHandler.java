@@ -1,6 +1,7 @@
 package filesystem.pool;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
+import filesystem.interfaces.Task;
 
 import java.util.ArrayList;
 import java.util.concurrent.BlockingQueue;
@@ -18,7 +19,7 @@ public class PoolHandler {
         currentTasks = new LinkedBlockingQueue<>();
     }
 
-    public synchronized void initializeWorkers(int workerCount) {
+    public void initializeWorkers(int workerCount) {
         for (int i = 0; i < workerCount; i++) {
             workers.add(new Worker(currentTasks));
         }

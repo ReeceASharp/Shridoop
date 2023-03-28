@@ -1,7 +1,7 @@
 package filesystem.protocol.events;
 
 import filesystem.node.metadata.ChunkMetadata;
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
 
 import java.util.ArrayList;
 

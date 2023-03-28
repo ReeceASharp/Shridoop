@@ -1,14 +1,15 @@
 package filesystem.node;
 
 import filesystem.console.ConsoleParser;
-import filesystem.pool.Command;
-import filesystem.protocol.Event;
+import filesystem.interfaces.Command;
+import filesystem.interfaces.CommandInterface;
+import filesystem.interfaces.Event;
 import filesystem.protocol.events.*;
 import filesystem.transport.ContactList;
-import filesystem.transport.SocketStream;
-import filesystem.transport.TCPServer;
+import filesystem.transport.SocketWrapper;
 import filesystem.util.FileChunker;
 import filesystem.util.HostPortAddress;
+import filesystem.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,80 +22,58 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+
 import static filesystem.protocol.Protocol.*;
 
-public class Client extends Node {
+public class Client extends Node implements CommandInterface {
     private static final Logger logger = LogManager.getLogger(Client.class);
 
     private final HostPortAddress controllerAddress;
     private final Map<String, String> intermediateFilePaths;
-    private SocketStream controllerSocket;
+    private SocketWrapper controllerSocket;
+    private ConsoleParser console;
 
-    public Client(String host, int port) {
-        super();
+    public Client(String controllerHost, int controllerPort) {
+        // Listening port of 0 means that the OS will assign a port, doesn't matter for clients
+        // since they're always the ones initially setting up connections
+        super(0);
 
-        this.controllerAddress = new HostPortAddress(host, port);
-        logger.debug(controllerAddress);
+        this.controllerAddress = new HostPortAddress(controllerHost, controllerPort);
         this.intermediateFilePaths = new HashMap<>();
     }
 
 
     public static void main(String[] args) {
-        try {
-            int _i = 0;
-            while (_i++ < 1000000000) {
-                System.out.println("Hello World");
-                Thread.sleep(10000);
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        String controllerHost = Properties.get("CONTROLLER_HOST");
+        int controllerPort = Properties.getInt("CONTROLLER_PORT");
 
+        Client client = new Client(controllerHost, controllerPort);
 
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
+        client.init();
 
-        Client client = new Client(host, port);
-        client.setup();
     }
 
-    private void setup() {
-        this.server = new TCPServer(this, 0);
+    private void init() {
+        controllerSocket = connectionHandler.connect(controllerAddress);
         this.console = new ConsoleParser(this);
-
-        new Thread(this.server).start();
         new Thread(this.console).start();
 
-        // TODO: Refactor this to attempt to connect when entering a subset of commands
-        this.controllerSocket = connect(controllerAddress);
     }
 
     @Override
     protected void resolveEventMap() {
         // Controller -> Client
-        this.eventFunctions.put(CONTROLLER_REPORTS_FILE_LIST, this::displayStoredFiles);
-        this.eventFunctions.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
-        this.eventFunctions.put(CONTROLLER_REPORTS_CHUNK_ADD_LIST, this::sendChunks);
-        this.eventFunctions.put(CONTROLLER_REPORTS_FILE_REMOVE_STATUS, this::deleteStatus);
+        this.eventCallbacks.put(CONTROLLER_REPORTS_FILE_LIST, this::displayStoredFiles);
+        this.eventCallbacks.put(CONTROLLER_REPORTS_CHUNK_GET_LIST, this::fetchChunks);
+        this.eventCallbacks.put(CONTROLLER_REPORTS_CHUNK_ADD_LIST, this::sendChunks);
+        this.eventCallbacks.put(CONTROLLER_REPORTS_FILE_REMOVE_STATUS, this::deleteStatus);
         // ChunkHolder -> Client
-        this.eventFunctions.put(CHUNK_SERVER_SENDS_FILE_CHUNK, this::displayStoredFiles);
-    }
-
-    @Override
-    public String help() {
-        return "Client: This is the interface that is used to connect to a currently running Controller. Using one " +
-                "of the commands [add,get,delete] and a file parameter to modify the information on the cluster.";
-    }
-
-    @Override
-    public String intro() {
-        return "Distributed System Client: Used to connect to a Controller, can 'get', 'add', and 'delete' files from " +
-                "the cluster. More information available via 'help'.";
+        this.eventCallbacks.put(CHUNK_SERVER_SENDS_FILE_CHUNK, this::displayStoredFiles);
     }
 
     @Override
     public void cleanup() {
-        server.cleanup();
+        connectionHandler.cleanup();
     }
 
     @Override
@@ -104,7 +83,6 @@ public class Client extends Node {
         // chunk fetch will already be aware of any shenanigans
     }
 
-    @Override
     public Map<String, Command> getCommandList() {
         Map<String, Command> commandList = new HashMap<>();
 
@@ -114,6 +92,21 @@ public class Client extends Node {
         commandList.put("list-files", this::listFile);
 
         return commandList;
+    }
+
+    @Override
+    public String help() {
+        return null;
+    }
+
+    @Override
+    public String intro() {
+        return null;
+    }
+
+    @Override
+    public void exit() {
+        cleanup();
     }
 
     private String addFile(String userInput) {
@@ -198,11 +191,11 @@ public class Client extends Node {
                 // so there's no reason to use further randomness
                 HostPortAddress address = chunkToSend.getServersToContact().remove(0);
 
-                SocketStream socketStream = connectionHandler.getSocketStream(address);
-                if (socketStream == null)
-                    socketStream = connect(address);
+                SocketWrapper socketWrapper = connectionHandler.getSocketStream(address);
+                if (socketWrapper == null)
+                    socketWrapper = connectionHandler.connect(address);
 
-                sendMessage(socketStream, new NodeSendsFileChunk(
+                sendMessage(socketWrapper, new NodeSendsFileChunk(
                         response.getFile(),
                         chunkToSend.getChunkNumber(),
                         bytesToSend,

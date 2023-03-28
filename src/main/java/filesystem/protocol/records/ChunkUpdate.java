@@ -1,6 +1,6 @@
 package filesystem.protocol.records;
 
-import filesystem.protocol.Record;
+import filesystem.interfaces.Record;
 
 public class ChunkUpdate implements Record {
     public static final int type = CHUNK_UPDATE;

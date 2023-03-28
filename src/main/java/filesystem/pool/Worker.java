@@ -1,5 +1,7 @@
 package filesystem.pool;
 
+import filesystem.interfaces.Task;
+
 import java.util.concurrent.BlockingQueue;
 
 public class Worker implements Runnable {

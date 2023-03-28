@@ -1,7 +1,7 @@
 package filesystem.util;
 
 import filesystem.node.metadata.ChunkMetadata;
-import filesystem.protocol.Record;
+import filesystem.interfaces.Record;
 import filesystem.protocol.RecordKeeper;
 import filesystem.protocol.records.ChunkAdd;
 

@@ -1,6 +1,6 @@
 package filesystem.protocol.events;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
 import filesystem.util.HostPortAddress;
 
 

@@ -1,4 +1,4 @@
-package filesystem.pool;
+package filesystem.interfaces;
 
 
 public interface Command {

@@ -1,4 +1,4 @@
-package filesystem.protocol;
+package filesystem.interfaces;
 
 import java.io.Serializable;
 

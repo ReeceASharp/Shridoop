@@ -1,6 +1,6 @@
 package filesystem.protocol.events;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
 import filesystem.protocol.Protocol;
 
 public class ControllerReportsFileDeleteStatus implements Event {

@@ -1,6 +1,6 @@
 package filesystem.protocol.events;
 
-import filesystem.protocol.*;
+import filesystem.interfaces.Event;
 
 import static filesystem.protocol.Protocol.CONTROLLER_REQUESTS_CHUNK_DELETE;
 

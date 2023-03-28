@@ -1,5 +1,6 @@
 package filesystem.protocol.events;
 
+import filesystem.interfaces.Event;
 import filesystem.protocol.*;
 import filesystem.transport.ContactList;
 

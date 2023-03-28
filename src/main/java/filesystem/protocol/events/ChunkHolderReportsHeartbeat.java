@@ -1,6 +1,6 @@
 package filesystem.protocol.events;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
 
 import static filesystem.protocol.Protocol.CHUNK_SERVER_REPORTS_HEALTH_HEARTBEAT;
 

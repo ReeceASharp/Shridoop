@@ -1,4 +1,4 @@
-package filesystem.node.metadata;
+package filesystem.interfaces;
 
 public interface MetadataCache {
     /**

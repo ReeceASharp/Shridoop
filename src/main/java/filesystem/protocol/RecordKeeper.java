@@ -1,5 +1,7 @@
 package filesystem.protocol;
 
+import filesystem.interfaces.Record;
+
 import java.util.ArrayList;
 import java.util.List;
 

@@ -1,6 +1,6 @@
 package filesystem.protocol.events;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
 
 import static filesystem.protocol.Protocol.CLIENT_REQUESTS_FILE_CHUNK;
 

@@ -1,6 +1,6 @@
 package filesystem.transport;
 
-import filesystem.protocol.Event;
+import filesystem.interfaces.Event;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,9 +19,9 @@ public class TCPSender implements Runnable {
     private final ObjectOutputStream outStream;
     private final Event eventToSend;
 
-    public TCPSender(SocketStream socketStream, Event event) {
-        this.socket = socketStream.socket;
-        this.outStream = socketStream.outStream;
+    public TCPSender(SocketWrapper socketWrapper, Event event) {
+        this.socket = socketWrapper.socket;
+        this.outStream = socketWrapper.outStream;
         this.eventToSend = event;
     }
 
